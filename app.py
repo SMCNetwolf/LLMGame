@@ -163,7 +163,7 @@ def game():
         latest_image = GameImage.query.filter_by(character_id=character_id).order_by(GameImage.created_at.desc()).first()
         if latest_image:
             session["current_scene"] = {
-                "description": "You continue your adventure...",
+                "description": "Você continua sua aventura...",
                 "image_id": latest_image.id
             }
         else:
@@ -187,7 +187,7 @@ def game():
 @app.route("/command", methods=["POST"])
 def process_command():
     if "character_id" not in session:
-        return jsonify({"error": "No active character"}), 400
+        return jsonify({"error": "Nenhum personagem ativo"}), 400
     
     command = request.form.get("command")
     character_id = session["character_id"]
@@ -250,10 +250,10 @@ def process_command():
 @app.route("/save_game", methods=["POST"])
 def save_game():
     if "character_id" not in session:
-        return jsonify({"error": "No active character"}), 400
+        return jsonify({"error": "Nenhum personagem ativo"}), 400
     
     # Game is already being saved automatically to the database
-    flash("Game saved successfully!", "success")
+    flash("Jogo salvo com sucesso!", "success")
     return redirect(url_for("game"))
 
 @app.route("/load_game", methods=["GET"])
@@ -272,7 +272,7 @@ def load_character(character_id):
     character = Character.query.get(character_id)
     
     if not character:
-        flash("Character not found", "error")
+        flash("Personagem não encontrado", "error")
         return redirect(url_for("index"))
     
     # Check if character belongs to current user
@@ -280,7 +280,7 @@ def load_character(character_id):
         game_state = GameState.query.filter_by(character_id=character_id).first()
         
         if not game_state:
-            flash("Game state not found", "error")
+            flash("Estado do jogo não encontrado", "error")
             return redirect(url_for("index"))
         
         # Set session variables
@@ -311,7 +311,7 @@ def load_character(character_id):
         
         return redirect(url_for("game"))
     
-    flash("You don't have permission to load this character", "error")
+    flash("Você não tem permissão para carregar este personagem", "error")
     return redirect(url_for("index"))
 
 # Database tables are already created in the previous context

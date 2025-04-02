@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="pt-BR" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Load Game - Fantasy RPG</title>
+    <title>Carregar Jogo - RPG de Fantasia</title>
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 </head>
 <body>
     <div class="container mt-5">
-        <h1 class="text-center mb-4">Load Character</h1>
+        <h1 class="text-center mb-4">Carregar Personagem</h1>
         
         <div class="row justify-content-center">
             <div class="col-md-8">
                 <div class="card bg-dark mb-4">
                     <div class="card-header">
-                        <h2 class="card-title">Your Characters</h2>
+                        <h2 class="card-title">Seus Personagens</h2>
                     </div>
                     <div class="card-body">
                         {% if characters %}
@@ -24,25 +24,25 @@
                                     <a href="{{ url_for('load_character', character_id=character.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                                         <div>
                                             <h4>{{ character.name }}</h4>
-                                            <p class="mb-1">Level {{ character.level }} {{ character.character_class }}</p>
-                                            <small>Created: {{ character.created_at.strftime('%Y-%m-%d') }}</small>
+                                            <p class="mb-1">Nível {{ character.level }} {{ character.character_class }}</p>
+                                            <small>Criado em: {{ character.created_at.strftime('%d/%m/%Y') }}</small>
                                         </div>
-                                        <span class="badge bg-primary rounded-pill">Load</span>
+                                        <span class="badge bg-primary rounded-pill">Carregar</span>
                                     </a>
                                 {% endfor %}
                             </div>
                         {% else %}
                             <div class="alert alert-info">
-                                <p>You don't have any characters yet.</p>
-                                <a href="{{ url_for('character_creation') }}" class="btn btn-primary">Create New Character</a>
+                                <p>Você ainda não tem nenhum personagem.</p>
+                                <a href="{{ url_for('character_creation') }}" class="btn btn-primary">Criar Novo Personagem</a>
                             </div>
                         {% endif %}
                     </div>
                 </div>
                 
                 <div class="d-flex justify-content-center">
-                    <a href="{{ url_for('index') }}" class="btn btn-secondary me-2">Back to Home</a>
-                    <a href="{{ url_for('character_creation') }}" class="btn btn-primary">Create New Character</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary me-2">Voltar ao Início</a>
+                    <a href="{{ url_for('character_creation') }}" class="btn btn-primary">Criar Novo Personagem</a>
                 </div>
             </div>
         </div>

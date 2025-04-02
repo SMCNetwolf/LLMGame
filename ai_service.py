@@ -63,18 +63,8 @@ def generate_image(prompt):
 
 def create_placeholder_image():
     """Create a placeholder SVG when image generation fails."""
-    svg = """
-    <svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
-      <rect width="1024" height="1024" fill="#2c3e50"/>
-      <text x="512" y="480" font-family="Arial" font-size="40" text-anchor="middle" fill="#ecf0f1">
-        Falha na geração da imagem
-      </text>
-      <text x="512" y="540" font-family="Arial" font-size="30" text-anchor="middle" fill="#ecf0f1">
-        Por favor, tente novamente mais tarde
-      </text>
-    </svg>
-    """
-    return f"data:image/svg+xml;base64,{svg.encode('utf-8').hex()}"
+    # Return the path to the static placeholder image
+    return "/static/placeholder.svg"
 
 def parse_game_action(action_text):
     """

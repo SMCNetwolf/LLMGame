@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="pt-BR" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fantasy AI RPG - Adventure</title>
+    <title>RPG de Fantasia com IA - Aventura</title>
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 </head>
 <body>
     <div class="container-fluid">
         <div class="row game-interface">
-            <!-- Game Information Panel (Left Sidebar) -->
+            <!-- Painel de Informações do Jogo (Barra Lateral Esquerda) -->
             <div class="col-md-3 sidebar character-panel">
                 <div class="card bg-dark h-100">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h4 class="mb-0">{{ character.name }}</h4>
-                        <span class="badge bg-primary">Level {{ character.level }}</span>
+                        <span class="badge bg-primary">Nível {{ character.level }}</span>
                     </div>
                     <div class="card-body">
                         <div class="character-info">
@@ -23,7 +23,7 @@
                             
                             <div class="stat-bar mb-3">
                                 <div class="d-flex justify-content-between mb-1">
-                                    <span>Health</span>
+                                    <span>Saúde</span>
                                     <span>{{ character.health }}/100</span>
                                 </div>
                                 <div class="progress">
@@ -45,7 +45,7 @@
                             
                             <div class="stat-bar mb-3">
                                 <div class="d-flex justify-content-between mb-1">
-                                    <span>Experience</span>
+                                    <span>Experiência</span>
                                     <span>{{ character.experience }}/{{ character.level * 100 }}</span>
                                 </div>
                                 <div class="progress">
@@ -55,45 +55,45 @@
                                 </div>
                             </div>
                             
-                            <h5 class="mt-4">Attributes</h5>
+                            <h5 class="mt-4">Atributos</h5>
                             <ul class="list-group list-group-flush attribute-list">
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span>Strength</span>
+                                    <span>Força</span>
                                     <span class="badge bg-danger rounded-pill">{{ character.strength }}</span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span>Intelligence</span>
+                                    <span>Inteligência</span>
                                     <span class="badge bg-primary rounded-pill">{{ character.intelligence }}</span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span>Dexterity</span>
+                                    <span>Destreza</span>
                                     <span class="badge bg-success rounded-pill">{{ character.dexterity }}</span>
                                 </li>
                             </ul>
                             
-                            <h5 class="mt-4">Location</h5>
+                            <h5 class="mt-4">Localização</h5>
                             <p>{{ game_state.current_location.replace('_', ' ').title() }}</p>
                             
                             <div class="d-grid gap-2 mt-4">
                                 <form action="{{ url_for('save_game') }}" method="post">
-                                    <button type="submit" class="btn btn-outline-primary btn-sm w-100">Save Game</button>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm w-100">Salvar Jogo</button>
                                 </form>
-                                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">Exit Game</a>
+                                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">Sair do Jogo</a>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Main Game Display (Center) -->
+            <!-- Área Principal do Jogo (Centro) -->
             <div class="col-md-6 main-game-area">
                 <div class="card bg-dark mb-3">
                     <div class="card-body text-center p-0">
                         <div class="game-image-container">
-                            <img id="gameImage" src="{{ image_url }}" alt="Game Scene" class="img-fluid game-image">
+                            <img id="gameImage" src="{{ image_url }}" alt="Cena do Jogo" class="img-fluid game-image" onerror="this.onerror=null; this.src='/static/placeholder.svg';">
                             <div class="image-loading-overlay d-none">
                                 <div class="spinner-border text-light" role="status">
-                                    <span class="visually-hidden">Loading...</span>
+                                    <span class="visually-hidden">Carregando...</span>
                                 </div>
                             </div>
                         </div>
@@ -108,30 +108,30 @@
                         
                         <div class="command-input-container">
                             <form id="commandForm" class="d-flex">
-                                <input type="text" id="commandInput" class="form-control me-2" placeholder="Enter your command..." autocomplete="off">
-                                <button type="submit" class="btn btn-primary">Send</button>
+                                <input type="text" id="commandInput" class="form-control me-2" placeholder="Digite seu comando..." autocomplete="off">
+                                <button type="submit" class="btn btn-primary">Enviar</button>
                             </form>
                         </div>
                         
                         <div class="command-suggestions mt-3">
-                            <p class="text-muted small">Command suggestions:</p>
+                            <p class="text-muted small">Sugestões de comandos:</p>
                             <div class="d-flex flex-wrap gap-1">
-                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">look around</button>
-                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">talk to villager</button>
-                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">go to tavern</button>
-                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">inventory</button>
-                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">help</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">olhar ao redor</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">falar com aldeão</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">ir para taverna</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">inventário</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">ajuda</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Game History and Help (Right Sidebar) -->
+            <!-- Histórico do Jogo e Ajuda (Barra Lateral Direita) -->
             <div class="col-md-3 sidebar history-panel">
                 <div class="card bg-dark h-100">
                     <div class="card-header">
-                        <h4 class="mb-0">Adventure History</h4>
+                        <h4 class="mb-0">Histórico da Aventura</h4>
                     </div>
                     <div class="card-body">
                         <div class="history-container">
@@ -139,7 +139,7 @@
                             <div class="history-item mb-3">
                                 <div class="history-timestamp text-muted small">{{ image.created_at.strftime('%H:%M:%S') }}</div>
                                 <div class="history-image-container">
-                                    <img src="{{ image.image_url }}" alt="History Image" class="img-fluid history-image">
+                                    <img src="{{ image.image_url }}" alt="Imagem do Histórico" class="img-fluid history-image" onerror="this.onerror=null; this.src='/static/placeholder.svg';">
                                 </div>
                                 <div class="history-prompt small text-truncate">{{ image.prompt }}</div>
                             </div>

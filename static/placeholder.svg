@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#2a2a2a"/>
+  <text x="512" y="512" font-family="Arial, sans-serif" font-size="32" text-anchor="middle" fill="#f0f0f0">
+    Imagem em processamento...
+  </text>
+  <text x="512" y="560" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#a0a0a0">
+    Use sua imaginação por enquanto!
+  </text>
+  <path d="M450,400 A100,100 0 1,0 450,600 A100,100 0 1,0 450,400 Z" fill="none" stroke="#606060" stroke-width="4"/>
+  <path d="M574,400 A100,100 0 1,0 574,600 A100,100 0 1,0 574,400 Z" fill="none" stroke="#606060" stroke-width="4"/>
+  <path d="M450,500 Q512,550 574,500" fill="none" stroke="#606060" stroke-width="4"/>
+</svg>

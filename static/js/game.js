@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error('Resposta da rede não foi ok');
             }
             return response.json();
         })
@@ -70,9 +70,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // We would load the new state on the next request
         })
         .catch(error => {
-            console.error('Error:', error);
+            console.error('Erro:', error);
             loadingOverlay.classList.add('d-none');
-            appendToGameText('Error processing your command. Please try again.', 'error-message');
+            appendToGameText('Erro ao processar seu comando. Por favor, tente novamente.', 'error-message');
         });
     }
     
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Image error handling
     gameImage.addEventListener('error', function() {
-        this.src = `data:image/svg+xml,%3Csvg width='800' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='800' height='400' fill='%23343a40'/%3E%3Ctext x='400' y='200' font-family='Arial' font-size='20' fill='%23f8f9fa' text-anchor='middle'%3EImage failed to load%3C/text%3E%3C/svg%3E`;
+        this.src = '/static/placeholder.svg';
     });
     
     // Handle game image loading
