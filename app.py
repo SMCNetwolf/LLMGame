@@ -15,8 +15,14 @@ db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET")
 
-# Configure SQLite database
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///rpggame.db"
+# Configure database - use PostgreSQL if available, otherwise fallback to SQLite
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///rpggame.db"
+    logging.warning("DATABASE_URL not found. Using SQLite database instead.")
+
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -34,8 +40,9 @@ from ai_service import generate_text_response, generate_image
 # Initialize the game engine
 engine = GameEngine()
 
-@app.before_first_request
-def create_tables():
+# Flask 2.0+ removes before_first_request
+# We'll use with app.app_context() instead
+with app.app_context():
     db.create_all()
     # Initialize game world data
     engine.initialize_game_world()
