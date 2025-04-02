@@ -140,44 +140,11 @@ def create_character():
         f"Você é o mestre de um RPG de fantasia. Crie uma introdução detalhada para um novo personagem chamado {name}, um {class_data.get('name', character_class)}. Descreva a vila inicial ({location_data['name']}) e mencione 3 possíveis locais que eles podem visitar ou pessoas com quem podem falar. Mantenha a resposta com menos de 300 palavras. Responda APENAS em português."
     )
     
-    # Generate character introduction audio
-    character_voice = "onyx"  # Default voice
-    if character_class.lower() in ["mago", "feiticeiro", "bardo"]:
-        character_voice = "nova"  # Magical classes
-    elif character_class.lower() in ["ladino", "arqueiro", "ranger"]:
-        character_voice = "echo"  # Dexterous classes
-    elif character_class.lower() in ["guerreiro", "bárbaro", "paladino"]:
-        character_voice = "shimmer"  # Warrior classes
-    
-    intro_audio_data = generate_character_introduction_audio(
-        name, 
-        class_data.get('name', character_class),
-        character_voice
-    )
-    
-    if intro_audio_data:
-        # Get the text that was generated for the audio introduction
-        # This requires modifying generate_character_introduction_audio to return both text and audio
-        intro_text = generate_text_response(
-            f"Crie uma introdução curta e dramática com cerca de 3 frases para {name}, um(a) {class_data.get('name', character_class)} em uma aventura de RPG. Fale na primeira pessoa, como se fosse o próprio personagem se apresentando. Mencione algo sobre a classe e a jornada que está por vir. Use linguagem épica e inspiradora. Mantenha a resposta com menos de 100 palavras."
-        )
-        
-        # Save the audio introduction
-        character_audio = CharacterAudio(
-            character_id=character.id,
-            audio_type="introduction",
-            audio_text=intro_text,
-            audio_data=intro_audio_data,
-            voice_type=character_voice
-        )
-        db.session.add(character_audio)
-        db.session.commit()
-    
-    # Store initial scene in session
+    # Store initial scene in session - sem áudio por enquanto
     session["current_scene"] = {
         "description": initial_description,
         "image_id": new_image.id,
-        "has_audio_intro": intro_audio_data is not None
+        "has_audio_intro": False  # Desativamos temporariamente o recurso de áudio
     }
     
     return redirect(url_for("game"))
@@ -285,7 +252,8 @@ def process_command():
     # Update session with new scene
     session["current_scene"] = {
         "description": response_text,
-        "image_id": new_image.id
+        "image_id": new_image.id,
+        "has_audio_intro": False  # Desativamos temporariamente o recurso de áudio
     }
     
     return jsonify({
@@ -352,7 +320,8 @@ def load_character(character_id):
             
             session["current_scene"] = {
                 "description": latest_description,
-                "image_id": latest_image.id
+                "image_id": latest_image.id,
+                "has_audio_intro": False  # Desativamos temporariamente o recurso de áudio
             }
         
         return redirect(url_for("game"))
