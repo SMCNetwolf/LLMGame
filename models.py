@@ -50,7 +50,7 @@ class GameImage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     character_id = db.Column(db.Integer, db.ForeignKey('character.id'), nullable=False)
     prompt = db.Column(db.Text, nullable=False)
-    image_url = db.Column(db.String(512), nullable=False)
+    image_url = db.Column(db.Text, nullable=False)  # Changed from String(512) to Text to handle longer URLs and SVG data
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     
     def __repr__(self):

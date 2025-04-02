@@ -43,6 +43,8 @@ engine = GameEngine()
 # Flask 2.0+ removes before_first_request
 # We'll use with app.app_context() instead
 with app.app_context():
+    # Drop and recreate the GameImage table to apply the column type change
+    db.metadata.tables['game_image'].drop(db.engine, checkfirst=True)
     db.create_all()
     # Initialize game world data
     engine.initialize_game_world()
@@ -274,6 +276,4 @@ def load_character(character_id):
     flash("You don't have permission to load this character", "error")
     return redirect(url_for("index"))
 
-with app.app_context():
-    # Make sure to import the models here or their tables won't be created
-    db.create_all()
+# Database tables are already created in the previous context
