@@ -13,7 +13,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 def generate_text_response(prompt):
     """
-    Generate a text response using OpenAI's GPT-4o model.
+    Generate a text response using OpenAI's GPT model.
     
     Args:
         prompt (str): The prompt to send to the OpenAI API
@@ -22,10 +22,9 @@ def generate_text_response(prompt):
         str: The generated text response
     """
     try:
-        # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-        # do not change this unless explicitly requested by the user
+        # Using gpt-3.5-turbo which is more widely available
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are an advanced fantasy RPG game master. Provide immersive, detailed responses that enhance the player's experience."},
                 {"role": "user", "content": prompt}
@@ -49,9 +48,9 @@ def generate_image(prompt):
         str: The URL of the generated image
     """
     try:
-        enhanced_prompt = f"{prompt} Fantasy style, detailed, atmospheric lighting, 4K, high quality."
+        enhanced_prompt = f"{prompt} Fantasy style, detailed, atmospheric lighting, high quality."
         response = client.images.generate(
-            model="dall-e-3",
+            model="dall-e-2",  # Using dall-e-2 which is more widely available
             prompt=enhanced_prompt,
             n=1,
             size="1024x1024",
@@ -88,18 +87,25 @@ def parse_game_action(action_text):
         dict: Structured action data
     """
     try:
-        # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-        # do not change this unless explicitly requested by the user
+        # Using o3-mini as specified
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="o3-mini",
             messages=[
                 {"role": "system", "content": "You are an AI that parses player commands in an RPG game. Extract the action type and relevant details from the player's input. Respond with a JSON object."},
-                {"role": "user", "content": f"Parse this player action into a structured format: '{action_text}'"}
+                {"role": "user", "content": f"Parse this player action into a structured format: '{action_text}'. Respond with a valid JSON object having action_type, target, and details fields."}
             ],
-            response_format={"type": "json_object"},
             temperature=0.3
         )
-        return json.loads(response.choices[0].message.content)
+        # Try to parse as JSON, but handle potential non-JSON responses
+        try:
+            return json.loads(response.choices[0].message.content)
+        except json.JSONDecodeError:
+            # If response isn't valid JSON, create a basic structure
+            return {
+                "action_type": "text",
+                "target": None,
+                "details": {"raw_text": action_text}
+            }
     except Exception as e:
         logger.error(f"Error parsing action: {e}")
         return {"action_type": "unknown", "target": None, "details": {}}
