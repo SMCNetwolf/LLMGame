@@ -49,12 +49,16 @@ def generate_image(prompt):
         str: The URL of the generated image
     """
     try:
-        enhanced_prompt = f"{prompt} Fantasy style, detailed, atmospheric lighting, high quality."
+        # Limitar o tamanho do prompt para evitar violações de conteúdo
+        if len(prompt) > 300:
+            prompt = prompt[:300]
+            
+        enhanced_prompt = f"{prompt} Fantasy RPG style"
         response = client.images.generate(
             model="dall-e-2",  # Using dall-e-2 which is more widely available
             prompt=enhanced_prompt,
             n=1,
-            size="1024x1024",
+            size="512x512",  # Reduzido para carregamento mais rápido
         )
         return response.data[0].url
     except Exception as e:

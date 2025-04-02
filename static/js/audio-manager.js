@@ -114,16 +114,72 @@ class AudioManager {
         // Encontrar o caminho da música para a localização
         const musicPath = this.locationMusicMap[location] || this.locationMusicMap['default'];
         
-        // Se já está tocando música, fazer transição suave
-        if (this.backgroundMusic.src) {
-            this.fadeOutAndSwitch(musicPath);
-        } else {
-            // Caso contrário, iniciar diretamente
-            this.backgroundMusic.src = musicPath;
-            this.backgroundMusic.play().catch(error => {
-                console.warn('Não foi possível reproduzir música automaticamente:', error);
-            });
+        // Atualizar a fonte do áudio
+        this.backgroundMusic.src = musicPath;
+        
+        // Exibir botão de reprodução de música para interação do usuário
+        // (necessário para contornar restrições de autoplay do navegador)
+        this.showPlayMusicNotification();
+    }
+    
+    /**
+     * Mostra uma notificação para o usuário iniciar a música manualmente
+     * (contorna restrições de autoplay do navegador)
+     */
+    showPlayMusicNotification() {
+        // Remover notificação existente, se houver
+        const existingNotification = document.getElementById('playMusicNotification');
+        if (existingNotification) {
+            existingNotification.remove();
         }
+        
+        // Criar notificação para iniciar música
+        const notificationHTML = `
+            <div id="playMusicNotification" class="position-fixed top-0 start-50 translate-middle-x p-3 mt-2" 
+                style="z-index: 1050; max-width: 300px;">
+                <div class="toast show bg-dark text-light" role="alert">
+                    <div class="toast-header bg-dark text-light border-bottom border-secondary">
+                        <i class="bi bi-music-note me-2"></i>
+                        <strong class="me-auto">Música de Fundo</strong>
+                        <button type="button" class="btn-close btn-close-white" 
+                            onclick="document.getElementById('playMusicNotification').remove()"></button>
+                    </div>
+                    <div class="toast-body">
+                        <p class="small mb-2">Iniciar música temática para esta localização?</p>
+                        <button id="startMusicBtn" class="btn btn-sm btn-outline-light w-100">
+                            <i class="bi bi-play-fill"></i> Tocar Música
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Inserir na página
+        document.body.insertAdjacentHTML('beforeend', notificationHTML);
+        
+        // Configurar botão para iniciar a música
+        document.getElementById('startMusicBtn').addEventListener('click', () => {
+            // Iniciar reprodução e remover notificação
+            this.backgroundMusic.play()
+                .then(() => {
+                    // Sucesso!
+                    document.getElementById('playMusicNotification').remove();
+                })
+                .catch(error => {
+                    console.error('Falha ao reproduzir música:', error);
+                    // Exibir mensagem de erro na notificação
+                    const notificationBody = document.querySelector('#playMusicNotification .toast-body');
+                    if (notificationBody) {
+                        notificationBody.innerHTML = `
+                            <p class="small text-warning mb-2">Não foi possível iniciar a música. Verifique as configurações do seu navegador.</p>
+                            <button class="btn btn-sm btn-outline-light w-100" 
+                                onclick="document.getElementById('playMusicNotification').remove()">
+                                Fechar
+                            </button>
+                        `;
+                    }
+                });
+        });
     }
     
     /**

@@ -192,6 +192,24 @@
             </div>
         </div>
     </div>
+    
+    <!-- Notificação de áudio disponível -->
+    <div id="audioIntroNotification" class="position-fixed bottom-0 start-50 translate-middle-x p-3 mb-3" style="z-index: 1050; max-width: 300px;">
+        <div class="toast show bg-dark text-light" role="alert">
+            <div class="toast-header bg-dark text-light border-bottom border-secondary">
+                <i class="bi bi-volume-up me-2"></i>
+                <strong class="me-auto">Apresentação</strong>
+                <button type="button" class="btn-close btn-close-white" 
+                    onclick="document.getElementById('audioIntroNotification').remove()"></button>
+            </div>
+            <div class="toast-body">
+                <p class="small mb-2">Ouvir apresentação de {{ character.name }}?</p>
+                <button id="playIntroBtn" data-audio-id="{{ intro_audio_id }}" class="btn btn-sm btn-outline-light w-100">
+                    <i class="bi bi-play-fill"></i> Ouvir
+                </button>
+            </div>
+        </div>
+    </div>
     {% endif %}
 </body>
 </html>

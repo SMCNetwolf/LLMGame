@@ -143,11 +143,52 @@ def create_character():
     # Generate initial hint for new players
     initial_hint = generate_contextual_hint(character, game_state, "novo jogo", {})
     
-    # Store initial scene in session - sem áudio por enquanto
+    # Gerar introdução de áudio para o personagem
+    has_audio_intro = False
+    audio_id = None
+    
+    try:
+        from ai_service import generate_audio
+        import logging
+        
+        # Gerar texto de introdução do personagem
+        intro_text = generate_text_response(
+            f"Crie uma introdução curta e dramática com cerca de 3 frases para {name}, um(a) {class_data.get('name', character_class)} em uma aventura de RPG. Fale na primeira pessoa, como se fosse o próprio personagem se apresentando. Mencione algo sobre a classe e a jornada que está por vir. Use linguagem épica e inspiradora. Mantenha a resposta com menos de 100 palavras."
+        )
+        
+        # Gerar áudio para o texto de introdução
+        logging.info(f"Generating audio introduction for character {name}")
+        audio_data = generate_audio(intro_text, voice_type="onyx")
+        
+        if audio_data:
+            # Salvar áudio no banco de dados
+            character_audio = CharacterAudio(
+                character_id=character.id,
+                audio_type="introduction",
+                audio_text=intro_text,
+                audio_data=audio_data,
+                voice_type="onyx"
+            )
+            db.session.add(character_audio)
+            db.session.commit()
+            
+            has_audio_intro = True
+            audio_id = character_audio.id
+            logging.info(f"Audio introduction generated successfully, ID: {audio_id}")
+        else:
+            logging.warning("Failed to generate audio data")
+    except Exception as e:
+        import traceback
+        import logging
+        logging.error(f"Error generating character audio: {e}")
+        logging.error(traceback.format_exc())
+    
+    # Store initial scene in session
     session["current_scene"] = {
         "description": initial_description,
         "image_id": new_image.id,
-        "has_audio_intro": False,  # Desativamos temporariamente o recurso de áudio
+        "has_audio_intro": has_audio_intro,
+        "audio_id": audio_id,
         "hint": initial_hint  # Add initial hint to the session
     }
     
