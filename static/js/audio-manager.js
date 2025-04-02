@@ -127,59 +127,82 @@ class AudioManager {
      * (contorna restrições de autoplay do navegador)
      */
     showPlayMusicNotification() {
-        // Remover notificação existente, se houver
-        const existingNotification = document.getElementById('playMusicNotification');
-        if (existingNotification) {
-            existingNotification.remove();
-        }
+        // Verificar primeiro se o arquivo de música existe
+        const musicPath = this.backgroundMusic.src;
         
-        // Criar notificação para iniciar música
-        const notificationHTML = `
-            <div id="playMusicNotification" class="position-fixed top-0 start-50 translate-middle-x p-3 mt-2" 
-                style="z-index: 1050; max-width: 300px;">
-                <div class="toast show bg-dark text-light" role="alert">
-                    <div class="toast-header bg-dark text-light border-bottom border-secondary">
-                        <i class="bi bi-music-note me-2"></i>
-                        <strong class="me-auto">Música de Fundo</strong>
-                        <button type="button" class="btn-close btn-close-white" 
-                            onclick="document.getElementById('playMusicNotification').remove()"></button>
+        // Teste prévio se o arquivo é acessível
+        fetch(musicPath)
+            .then(response => {
+                if (!response.ok || response.headers.get('content-length') < 1000) {
+                    // Arquivo não existe ou é muito pequeno (placeholder)
+                    console.warn('Arquivos de música não disponíveis ou são placeholders');
+                    return false;
+                }
+                return true;
+            })
+            .then(musicExists => {
+                if (!musicExists) {
+                    // Não exibir notificação se a música não existir
+                    return;
+                }
+                
+                // Remover notificação existente, se houver
+                const existingNotification = document.getElementById('playMusicNotification');
+                if (existingNotification) {
+                    existingNotification.remove();
+                }
+                
+                // Criar notificação para iniciar música
+                const notificationHTML = `
+                    <div id="playMusicNotification" class="position-fixed top-0 start-50 translate-middle-x p-3 mt-2" 
+                        style="z-index: 1050; max-width: 300px;">
+                        <div class="toast show bg-dark text-light" role="alert">
+                            <div class="toast-header bg-dark text-light border-bottom border-secondary">
+                                <i class="bi bi-music-note me-2"></i>
+                                <strong class="me-auto">Música de Fundo</strong>
+                                <button type="button" class="btn-close btn-close-white" 
+                                    onclick="document.getElementById('playMusicNotification').remove()"></button>
+                            </div>
+                            <div class="toast-body">
+                                <p class="small mb-2">Iniciar música temática para esta localização?</p>
+                                <button id="startMusicBtn" class="btn btn-sm btn-outline-light w-100">
+                                    <i class="bi bi-play-fill"></i> Tocar Música
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="toast-body">
-                        <p class="small mb-2">Iniciar música temática para esta localização?</p>
-                        <button id="startMusicBtn" class="btn btn-sm btn-outline-light w-100">
-                            <i class="bi bi-play-fill"></i> Tocar Música
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Inserir na página
-        document.body.insertAdjacentHTML('beforeend', notificationHTML);
-        
-        // Configurar botão para iniciar a música
-        document.getElementById('startMusicBtn').addEventListener('click', () => {
-            // Iniciar reprodução e remover notificação
-            this.backgroundMusic.play()
-                .then(() => {
-                    // Sucesso!
-                    document.getElementById('playMusicNotification').remove();
-                })
-                .catch(error => {
-                    console.error('Falha ao reproduzir música:', error);
-                    // Exibir mensagem de erro na notificação
-                    const notificationBody = document.querySelector('#playMusicNotification .toast-body');
-                    if (notificationBody) {
-                        notificationBody.innerHTML = `
-                            <p class="small text-warning mb-2">Não foi possível iniciar a música. Verifique as configurações do seu navegador.</p>
-                            <button class="btn btn-sm btn-outline-light w-100" 
-                                onclick="document.getElementById('playMusicNotification').remove()">
-                                Fechar
-                            </button>
-                        `;
-                    }
+                `;
+                
+                // Inserir na página
+                document.body.insertAdjacentHTML('beforeend', notificationHTML);
+                
+                // Configurar botão para iniciar a música
+                document.getElementById('startMusicBtn').addEventListener('click', () => {
+                    // Iniciar reprodução e remover notificação
+                    this.backgroundMusic.play()
+                        .then(() => {
+                            // Sucesso!
+                            document.getElementById('playMusicNotification').remove();
+                        })
+                        .catch(error => {
+                            console.error('Falha ao reproduzir música:', error);
+                            // Exibir mensagem de erro na notificação
+                            const notificationBody = document.querySelector('#playMusicNotification .toast-body');
+                            if (notificationBody) {
+                                notificationBody.innerHTML = `
+                                    <p class="small text-warning mb-2">Não foi possível iniciar a música. Verifique as configurações do seu navegador.</p>
+                                    <button class="btn btn-sm btn-outline-light w-100" 
+                                        onclick="document.getElementById('playMusicNotification').remove()">
+                                        Fechar
+                                    </button>
+                                `;
+                            }
+                        });
                 });
-        });
+            })
+            .catch(error => {
+                console.error('Erro ao verificar arquivo de música:', error);
+            });
     }
     
     /**

@@ -232,6 +232,19 @@ def filter_image_prompt(prompt):
     # Convert to lowercase for case-insensitive matching
     prompt_lower = prompt.lower()
     
+    # Remover termos de metaprompt que podem disparar filtros
+    # Palavras como "tentando", "NetWolf", "gere", "GPT" podem disparar filtros
+    metaprompt_terms = ["netwolf", "tentando", "gpt", "gere ", "gerando", "openai", "dall-e"]
+    for term in metaprompt_terms:
+        if term in prompt_lower:
+            prompt = re.sub(re.escape(term), "", prompt, flags=re.IGNORECASE)
+            logger.info(f"Removed metaprompt term from image prompt: {term}")
+    
+    # Limitar tamanho para evitar problemas
+    if len(prompt) > 200:
+        prompt = prompt[:200]
+        logger.info("Truncated long image prompt")
+    
     # Check for inappropriate terms in all severity levels
     for term in FILTERED_TERMS["high_severity"] + FILTERED_TERMS["medium_severity"]:
         if term.lower() in prompt_lower:
@@ -260,7 +273,11 @@ def filter_image_prompt(prompt):
             return False, "Cena de fantasia apropriada para o jogo"
     
     # Add safety suffix to the prompt
-    safe_prompt = prompt + " Estilo fantasia, apropriado para adolescentes, sem conteúdo explícito."
+    safe_prompt = "Cena de RPG medieval fantástico, estilo artístico de jogo: " + prompt
+    
+    # Limitar novamente para garantir
+    if len(safe_prompt) > 200:
+        safe_prompt = safe_prompt[:200]
     
     return True, safe_prompt
 

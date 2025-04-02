@@ -49,14 +49,21 @@ def generate_image(prompt):
         str: The URL of the generated image
     """
     try:
-        # Limitar o tamanho do prompt para evitar violações de conteúdo
-        if len(prompt) > 300:
-            prompt = prompt[:300]
+        # Importar função de filtragem do módulo filtering_toxicity
+        from filtering_toxicity import filter_image_prompt
+        
+        # Aplicar filtragem
+        is_appropriate, safe_prompt = filter_image_prompt(prompt)
+        
+        if not is_appropriate:
+            logger.warning(f"Image prompt was flagged as inappropriate: {prompt}")
+            return create_placeholder_image()
             
-        enhanced_prompt = f"{prompt} Fantasy RPG style"
+        logger.info(f"Safe image prompt: {safe_prompt}")
+        
         response = client.images.generate(
             model="dall-e-2",  # Using dall-e-2 which is more widely available
-            prompt=enhanced_prompt,
+            prompt=safe_prompt,
             n=1,
             size="512x512",  # Reduzido para carregamento mais rápido
         )
