@@ -140,11 +140,15 @@ def create_character():
         f"Você é o mestre de um RPG de fantasia. Crie uma introdução detalhada para um novo personagem chamado {name}, um {class_data.get('name', character_class)}. Descreva a vila inicial ({location_data['name']}) e mencione 3 possíveis locais que eles podem visitar ou pessoas com quem podem falar. Mantenha a resposta com menos de 300 palavras. Responda APENAS em português."
     )
     
+    # Generate initial hint for new players
+    initial_hint = generate_contextual_hint(character, game_state, "novo jogo", {})
+    
     # Store initial scene in session - sem áudio por enquanto
     session["current_scene"] = {
         "description": initial_description,
         "image_id": new_image.id,
-        "has_audio_intro": False  # Desativamos temporariamente o recurso de áudio
+        "has_audio_intro": False,  # Desativamos temporariamente o recurso de áudio
+        "hint": initial_hint  # Add initial hint to the session
     }
     
     return redirect(url_for("game"))
@@ -188,6 +192,9 @@ def game():
             has_audio_intro = True
             intro_audio_id = audio_intro.id
     
+    # Generate a contextual hint for the initial state
+    initial_hint = generate_contextual_hint(character, game_state, "olhar ao redor", {})
+    
     return render_template("game.html", 
                           character=character, 
                           game_state=game_state,
@@ -195,7 +202,8 @@ def game():
                           image_url=image.image_url,
                           history=history,
                           has_audio_intro=has_audio_intro,
-                          intro_audio_id=intro_audio_id)
+                          intro_audio_id=intro_audio_id,
+                          initial_hint=initial_hint)
 
 @app.route("/command", methods=["POST"])
 def process_command():
@@ -230,8 +238,24 @@ def process_command():
         )
         response_text = generate_text_response(safe_prompt)
     
-    # Generate image for the new scene
-    image_prompt = result.get('image_prompt', f"{character.name}, um {class_name}, {command}. Cena de RPG, cenário de fantasia.")
+    # Generate image for the new scene with character descriptions for consistency
+    character_description = ""
+    if hasattr(character, 'appearance'):
+        character_description = character.appearance
+    elif hasattr(character, 'description'):
+        character_description = character.description
+    else:
+        # Create default character description based on class
+        if character.character_class == 'guerreiro':
+            character_description = f"{character.name} é um guerreiro forte e musculoso, com armadura pesada"
+        elif character.character_class == 'mago':
+            character_description = f"{character.name} é um mago de túnica azul com detalhes dourados"
+        elif character.character_class == 'ladino':
+            character_description = f"{character.name} é um ladino ágil e esguio, com vestimentas leves escuras"
+        else:
+            character_description = f"{character.name}, um {class_name}"
+            
+    image_prompt = result.get('image_prompt', f"{character_description}, {command}. Cena de RPG, cenário de fantasia medieval, estilo detalhado.")
     image_url = generate_image(image_prompt)
     
     # Save image to database
@@ -249,16 +273,22 @@ def process_command():
     # Save changes
     db.session.commit()
     
+    # Generate contextual hint based on the game state and current action
+    hint = generate_contextual_hint(character, game_state, command, result)
+    
     # Update session with new scene
     session["current_scene"] = {
         "description": response_text,
         "image_id": new_image.id,
-        "has_audio_intro": False  # Desativamos temporariamente o recurso de áudio
+        "has_audio_intro": False,  # Desativamos temporariamente o recurso de áudio
+        "hint": hint
     }
     
     return jsonify({
         "description": response_text,
-        "image_url": image_url
+        "image_url": image_url,
+        "current_location": game_state.current_location,
+        "hint": hint
     })
 
 @app.route("/save_game", methods=["POST"])
@@ -318,10 +348,14 @@ def load_character(character_id):
                 f"Você é o mestre de um RPG de fantasia. Crie uma breve descrição da cena quando {character.name}, um {class_name} de nível {character.level}, retorna à sua aventura {location_description}. Mantenha com menos de 200 palavras. Responda APENAS em português."
             )
             
+            # Generate hint for returning player
+            return_hint = generate_contextual_hint(character, game_state, "retornar ao jogo", {})
+            
             session["current_scene"] = {
                 "description": latest_description,
                 "image_id": latest_image.id,
-                "has_audio_intro": False  # Desativamos temporariamente o recurso de áudio
+                "has_audio_intro": False,  # Desativamos temporariamente o recurso de áudio
+                "hint": return_hint  # Add hint for returning players
             }
         
         return redirect(url_for("game"))
@@ -346,5 +380,121 @@ def get_character_audio(audio_id):
         })
     
     return jsonify({"error": "Acesso não autorizado"}), 403
+
+# Função para gerar dicas contextuais baseadas no personagem, estado do jogo e comando atual
+def generate_contextual_hint(character, game_state, command, result):
+    """
+    Gera uma dica contextual baseada no estado atual do jogo e na ação do jogador.
+    
+    Args:
+        character: O objeto Character do jogador
+        game_state: O objeto GameState atual
+        command: O comando que o jogador executou
+        result: O resultado do processamento do comando
+        
+    Returns:
+        str: Uma dica contextual personalizada
+    """
+    import random
+    # Extrair informações relevantes
+    location_id = game_state.current_location
+    character_level = character.level
+    character_class = character.character_class
+    character_health = character.health
+    
+    # Verificar o inventário (em formato JSON)
+    import json
+    inventory = {}
+    try:
+        inventory = json.loads(game_state.inventory)
+    except:
+        pass
+        
+    # Conjunto de dicas gerais
+    general_hints = [
+        "Experimente usar 'examinar' seguido de objetos para descobrir detalhes interessantes.",
+        "Objetos e NPCs podem ter informações valiosas. Use 'falar com' ou 'conversar' para interagir.",
+        "Guarde seu ouro para comprar itens mais poderosos nas lojas ou mercadores.",
+        "Explore diferentes locais para descobrir novas missões e tesouros."
+    ]
+    
+    # Dicas específicas baseadas no local
+    location_hints = {
+        "village_of_meadowbrook": [
+            "A vila tem uma taverna onde você pode obter informações sobre missões e rumores.",
+            "O ferreiro pode forjar novas armas se você tiver os materiais certos.",
+            "Converse com os aldeões para descobrir segredos sobre a região."
+        ],
+        "forest_of_whispers": [
+            "Ervas raras podem ser encontradas nas clareiras. Use 'procurar ervas' para encontrá-las.",
+            "Os sussurros da floresta escondem segredos. Tente 'ouvir atentamente' em diferentes áreas.",
+            "Cuidado com predadores escondidos. Mantenha sua saúde alta antes de explorar mais fundo."
+        ],
+        "ancient_ruins": [
+            "Mecanismos antigos podem esconder tesouros. Procure por alavancas ou botões escondidos.",
+            "Algumas paredes podem ser falsas. Tente 'examinar paredes' em busca de passagens secretas.",
+            "Antigos escritos podem conter conhecimento valioso. Use 'ler' ou 'decifrar' ao encontrá-los."
+        ],
+        "tavern": [
+            "Os clientes da taverna geralmente têm informações valiosas. Tente 'ouvir conversas'.",
+            "O taverneiro pode ter missões especiais para aventureiros confiáveis.",
+            "Jogos de azar podem ser uma forma rápida de ganhar (ou perder) ouro."
+        ]
+    }
+    
+    # Dicas baseadas na classe do personagem
+    class_hints = {
+        "guerreiro": [
+            "Guerreiros podem 'intimidar' NPCs para obter vantagens em certas situações.",
+            "Sua força permite mover objetos pesados. Tente 'empurrar' ou 'levantar' objetos grandes.",
+            "Em combate, use 'atacar com' seguido do nome de sua arma para maior eficácia."
+        ],
+        "mago": [
+            "Tente 'detectar magia' em locais antigos para descobrir artefatos ocultos.",
+            "Seus feitiços de 'luz' podem revelar segredos em áreas escuras.",
+            "A meditação pode recuperar mana mais rapidamente. Use 'meditar' quando estiver seguro."
+        ],
+        "ladino": [
+            "Use 'esconder-se' para evitar confrontos diretos ou 'esgueirar' para passar despercebido.",
+            "Suas habilidades de 'arrombar' podem abrir fechaduras sem as chaves corretas.",
+            "Tente 'procurar armadilhas' antes de abrir baús ou portas suspeitas."
+        ]
+    }
+    
+    # Dicas baseadas no conteúdo do comando
+    command_hint = None
+    command_lower = command.lower()
+    if 'ajuda' in command_lower or 'o que posso fazer' in command_lower:
+        return "Você pode explorar o mundo com comandos como 'ir para', interagir com objetos e personagens usando 'examinar' ou 'falar com', e gerenciar seu inventário com 'usar item' ou 'equipar'."
+    elif 'atacar' in command_lower and 'com' not in command_lower:
+        command_hint = "Especifique sua arma usando 'atacar com [arma]' para maior eficácia."
+    elif 'comprar' in command_lower and len(command_lower.split()) < 3:
+        command_hint = "Especifique o que deseja comprar usando 'comprar [item] de [vendedor]'."
+    elif 'mapa' in command_lower:
+        command_hint = "Use 'ir para [local]' para viajar entre áreas conhecidas. Novos locais são descobertos pela exploração."
+    elif 'inventário' in command_lower:
+        if len(inventory) < 2:
+            command_hint = "Seu inventário está quase vazio. Explore o mundo para encontrar ou comprar itens úteis."
+    
+    # Selecionar uma dica baseada na situação atual
+    selected_hint = None
+    
+    # Se o personagem estiver com pouca saúde
+    if character_health < 30:
+        selected_hint = "Sua saúde está baixa! Use uma poção ou descanse para recuperá-la antes de entrar em batalha."
+    # Se o personagem falou uma ação específica
+    elif command_hint:
+        selected_hint = command_hint
+    # Dicas baseadas no local atual
+    elif location_id in location_hints and location_hints[location_id]:
+        selected_hint = random.choice(location_hints[location_id])
+    # Dicas baseadas na classe (com menor frequência)
+    elif character_class in class_hints and class_hints[character_class] and random.random() < 0.3:
+        selected_hint = random.choice(class_hints[character_class])
+    # Dicas gerais como fallback
+    else:
+        selected_hint = random.choice(general_hints)
+    
+    return selected_hint
 
 # Database tables are already created in the previous context

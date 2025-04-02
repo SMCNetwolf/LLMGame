@@ -69,9 +69,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // Auto-scroll to bottom of game text
             gameText.scrollTop = gameText.scrollHeight;
             
-            // Add the response to history (this would normally happen server-side)
-            // In a real implementation, the server would update the history
-            // We would load the new state on the next request
+            // Atualizar a música de fundo se a localização mudou
+            if (data.current_location && window.audioManager) {
+                window.audioManager.playLocationMusic(data.current_location);
+                // Atualizar o estado do jogo
+                gameState.currentLocation = data.current_location;
+            }
+            
+            // Exibir dicas contextuais se disponíveis
+            if (data.hint) {
+                showContextualHint(data.hint);
+            }
         })
         .catch(error => {
             console.error('Erro:', error);
@@ -110,6 +118,63 @@ document.addEventListener('DOMContentLoaded', function() {
             commandInput.focus();
         }
     });
+    
+    // Função para exibir dicas contextuais
+    function showContextualHint(hintText) {
+        // Verifica se já existe um toast de dica
+        let hintToast = document.getElementById('contextualHintToast');
+        
+        // Se não existir, cria um novo
+        if (!hintToast) {
+            const toastHTML = `
+                <div id="contextualHintToast" class="position-fixed bottom-0 start-0 p-3" style="z-index: 1060;">
+                    <div class="toast bg-dark border-info" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="8000">
+                        <div class="toast-header bg-dark text-light border-bottom border-info">
+                            <i class="bi bi-info-circle me-2 text-info"></i>
+                            <strong class="me-auto">Dica</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Fechar"></button>
+                        </div>
+                        <div class="toast-body text-light" id="hintToastBody">
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', toastHTML);
+            hintToast = document.getElementById('contextualHintToast');
+        }
+        
+        // Atualiza o texto da dica
+        document.getElementById('hintToastBody').textContent = hintText;
+        
+        // Mostra a dica usando o Bootstrap Toast
+        const toastElement = hintToast.querySelector('.toast');
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+    }
+    
+    // Iniciar com uma dica inicial depois de 3 segundos
+    setTimeout(() => {
+        // Usar a dica inicial do servidor, se disponível
+        if (typeof initialHint === 'string' && initialHint) {
+            showContextualHint(initialHint);
+        } 
+        // Caso contrário, gerar uma dica baseada na localização
+        else if (gameState && gameState.currentLocation) {
+            // Dica baseada na localização
+            let hintText = "Use o comando 'olhar ao redor' para examinar seu ambiente.";
+            
+            if (gameState.currentLocation.includes('forest')) {
+                hintText = "As florestas podem esconder muitos segredos. Experimente 'examinar árvores' ou 'procurar trilhas'.";
+            } else if (gameState.currentLocation.includes('village')) {
+                hintText = "Em vilas, você pode 'falar com aldeões' ou visitar edifícios como a 'taverna' ou o 'mercado'.";
+            } else if (gameState.currentLocation.includes('cave')) {
+                hintText = "Cavernas são perigosas. Use 'acender tocha' para enxergar melhor ou 'ouvir sons' para detectar criaturas.";
+            }
+            
+            showContextualHint(hintText);
+        }
+    }, 3000);
     
     // Função para reproduzir áudio de introdução do personagem
     if (playIntroButton) {
