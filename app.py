@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from sqlalchemy.orm import DeclarativeBase
@@ -36,6 +37,10 @@ db.init_app(app)
 from models import User, Character, GameState, GameImage
 from game_engine import GameEngine
 from ai_service import generate_text_response, generate_image
+import inventory_system
+import game_world
+import game_objectives
+import filtering_toxicity
 
 # Initialize the game engine
 engine = GameEngine()
@@ -43,8 +48,7 @@ engine = GameEngine()
 # Flask 2.0+ removes before_first_request
 # We'll use with app.app_context() instead
 with app.app_context():
-    # Drop and recreate the GameImage table to apply the column type change
-    db.metadata.tables['game_image'].drop(db.engine, checkfirst=True)
+    # Create all database tables
     db.create_all()
     # Initialize game world data
     engine.initialize_game_world()
@@ -88,12 +92,24 @@ def create_character():
     db.session.add(character)
     db.session.commit()
     
+    # Initialize inventory based on character class
+    starting_inventory = inventory_system.initialize_inventory(character.id)
+    
+    # Add starting equipment based on character class
+    class_data = game_world.CHARACTER_CLASSES.get(character_class, {})
+    
+    for item_id in class_data.get("starting_equipment", []):
+        inventory_system.add_item(starting_inventory, item_id)
+    
+    for item_id in class_data.get("starting_inventory", []):
+        inventory_system.add_item(starting_inventory, item_id)
+    
     # Create initial game state
     game_state = GameState(
         character_id=character.id,
-        current_location="starting_village",
-        inventory="{}",
-        quest_progress="{}"
+        current_location=game_world.WORLD_CONFIG["starting_location"],
+        inventory=json.dumps(starting_inventory),
+        quest_progress=json.dumps({"completed_quests": []})
     )
     db.session.add(game_state)
     db.session.commit()
@@ -101,8 +117,12 @@ def create_character():
     session["character_id"] = character.id
     session["game_state_id"] = game_state.id
     
-    # Generate first scene
-    initial_prompt = f"A new adventure begins for {name}, a level 1 {character_class}. They find themselves in a small village at the edge of a vast fantasy world. The village has thatched-roof cottages, a small market, and friendly villagers going about their day."
+    # Get starting location description
+    starting_location = game_world.WORLD_CONFIG["starting_location"]
+    location_data = game_world.LOCATIONS[starting_location]
+    
+    # Generate first scene with Portuguese description
+    initial_prompt = f"Uma nova aventura começa para {name}, um {class_data.get('name', character_class)} de nível 1. Eles se encontram em {location_data['name']}, {location_data['description']}"
     
     image_url = generate_image(initial_prompt)
     
@@ -115,9 +135,9 @@ def create_character():
     db.session.add(new_image)
     db.session.commit()
     
-    # Create initial scene description
+    # Create initial scene description using Portuguese prompt
     initial_description = generate_text_response(
-        f"You are a fantasy RPG game master. Create a detailed introduction for a new player character named {name}, a {character_class}. Describe the starting village and mention 3 possible locations they can visit or people they can talk to. Keep the response under 300 words."
+        f"Você é o mestre de um RPG de fantasia. Crie uma introdução detalhada para um novo personagem chamado {name}, um {class_data.get('name', character_class)}. Descreva a vila inicial ({location_data['name']}) e mencione 3 possíveis locais que eles podem visitar ou pessoas com quem podem falar. Mantenha a resposta com menos de 300 palavras. Responda APENAS em português."
     )
     
     # Store initial scene in session
@@ -177,18 +197,28 @@ def process_command():
     # Process command through game engine
     result = engine.process_command(command, character, game_state)
     
-    # Generate text response from AI
+    # Generate text response from AI (in Portuguese)
+    class_data = game_world.CHARACTER_CLASSES.get(character.character_class, {})
+    class_name = class_data.get('name', character.character_class)
+    
     context = f"""
-    Character: {character.name}, a level {character.level} {character.character_class}
-    Location: {game_state.current_location}
-    Command: {command}
+    Personagem: {character.name}, um {class_name} de nível {character.level}
+    Localização: {game_state.current_location}
+    Comando: {command}
     """
-    response_text = generate_text_response(
-        f"You are a fantasy RPG game master. Respond to the player's command: '{command}'. {context} {result.get('context', '')}. Keep the response around 200 words."
-    )
+    
+    # Use the context from game engine, which is already in Portuguese
+    response_text = result.get('context', '')
+    
+    # If we need to generate AI response for complex commands
+    if not response_text or "ai_response" in result:
+        safe_prompt = filtering_toxicity.add_safety_prompt_prefix(
+            f"Você é o mestre de um RPG de fantasia. Responda ao comando do jogador: '{command}'. {context} Mantenha a resposta com cerca de 200 palavras. Responda APENAS em português."
+        )
+        response_text = generate_text_response(safe_prompt)
     
     # Generate image for the new scene
-    image_prompt = f"{character.name}, a {character.character_class}, {result.get('image_prompt', command)}. RPG game scene, fantasy setting."
+    image_prompt = result.get('image_prompt', f"{character.name}, um {class_name}, {command}. Cena de RPG, cenário de fantasia.")
     image_url = generate_image(image_prompt)
     
     # Save image to database
@@ -261,9 +291,17 @@ def load_character(character_id):
         latest_image = GameImage.query.filter_by(character_id=character_id).order_by(GameImage.created_at.desc()).first()
         
         if latest_image:
-            # Create current scene
+            # Create current scene in Portuguese
+            class_data = game_world.CHARACTER_CLASSES.get(character.character_class, {})
+            class_name = class_data.get('name', character.character_class)
+            
+            location_description = ""
+            if game_state.current_location in game_world.LOCATIONS:
+                location_data = game_world.LOCATIONS[game_state.current_location]
+                location_description = f"em {location_data['name']}"
+            
             latest_description = generate_text_response(
-                f"You are a fantasy RPG game master. Create a brief description of the scene when {character.name}, a level {character.level} {character.character_class}, returns to their adventure in {game_state.current_location}. Keep it under 200 words."
+                f"Você é o mestre de um RPG de fantasia. Crie uma breve descrição da cena quando {character.name}, um {class_name} de nível {character.level}, retorna à sua aventura {location_description}. Mantenha com menos de 200 palavras. Responda APENAS em português."
             )
             
             session["current_scene"] = {

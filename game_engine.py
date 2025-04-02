@@ -1,148 +1,72 @@
 import json
 import random
+import logging
+import datetime
+
+# Import our custom modules
+import game_world
+import game_objectives
+import inventory_system
+import filtering_toxicity
+from ai_service import generate_text_response, generate_image
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 class GameEngine:
     def __init__(self):
         self.world_data = {}
         self.npcs = {}
         self.quests = {}
+        self.time_of_day = "morning"
+        self.game_day = 1
+        self.game_hour = 8  # Start at 8 AM
         
     def initialize_game_world(self):
         """Initialize the game world with locations, NPCs, and quests."""
-        # Define game world locations
-        self.world_data = {
-            "starting_village": {
-                "name": "Meadowbrook",
-                "description": "A peaceful village with thatched-roof cottages and friendly villagers.",
-                "connections": ["forest_path", "village_tavern", "marketplace"],
-                "npcs": ["village_elder", "blacksmith", "innkeeper"]
-            },
-            "forest_path": {
-                "name": "Whisperwind Forest",
-                "description": "A dense forest with tall trees and mysterious sounds.",
-                "connections": ["starting_village", "ancient_ruins", "river_crossing"],
-                "npcs": ["wandering_merchant", "forest_witch"]
-            },
-            "ancient_ruins": {
-                "name": "Ruins of Eldrath",
-                "description": "Crumbling stone structures from a forgotten civilization.",
-                "connections": ["forest_path", "underground_chamber"],
-                "npcs": ["ghostly_figure", "treasure_hunter"]
-            },
-            "village_tavern": {
-                "name": "The Prancing Pony",
-                "description": "A warm, lively tavern with good food and interesting patrons.",
-                "connections": ["starting_village"],
-                "npcs": ["bard", "mysterious_stranger", "drunk_adventurer"]
-            },
-            "marketplace": {
-                "name": "Meadowbrook Market",
-                "description": "A bustling market with various vendors selling goods.",
-                "connections": ["starting_village"],
-                "npcs": ["potion_vendor", "weapon_merchant", "jewelry_crafter"]
-            },
-            "river_crossing": {
-                "name": "Silvermist River",
-                "description": "A wide river with a stone bridge crossing it.",
-                "connections": ["forest_path", "mountain_path"],
-                "npcs": ["fisherman", "bridge_troll"]
-            },
-            "mountain_path": {
-                "name": "Frostpeak Trail",
-                "description": "A rocky path winding up the mountainside.",
-                "connections": ["river_crossing", "mountain_cave"],
-                "npcs": ["mountain_guide", "injured_climber"]
-            },
-            "mountain_cave": {
-                "name": "Dragon's Lair",
-                "description": "A massive cave with evidence of a large creature living inside.",
-                "connections": ["mountain_path"],
-                "npcs": ["ancient_dragon"]
-            },
-            "underground_chamber": {
-                "name": "Crystal Caverns",
-                "description": "A beautiful underground chamber filled with glowing crystals.",
-                "connections": ["ancient_ruins"],
-                "npcs": ["cave_dweller", "crystal_guardian"]
-            }
-        }
+        # Use our game_world module to get the game world data
+        self.world_data = game_world.LOCATIONS
+        self.npcs = game_world.NPCS
         
-        # Define NPCs
-        self.npcs = {
-            "village_elder": {
-                "name": "Elder Thorne",
-                "description": "A wise old man with a long white beard and kind eyes.",
-                "dialog": "Welcome to Meadowbrook, traveler. Our village could use someone with your skills."
-            },
-            "blacksmith": {
-                "name": "Gorin Ironhammer",
-                "description": "A muscular dwarf with a soot-covered apron and a hearty laugh.",
-                "dialog": "Need a new blade? I forge the finest weapons in the region!"
-            },
-            "innkeeper": {
-                "name": "Mabel Sweetwater",
-                "description": "A plump, cheerful woman who runs the village inn.",
-                "dialog": "Welcome to the Golden Goose Inn! We have warm beds and hot meals."
-            },
-            "wandering_merchant": {
-                "name": "Silvan",
-                "description": "A lanky man with a heavily-laden pack and a shrewd smile.",
-                "dialog": "Rare goods from distant lands! Take a look at my wares, friend."
-            },
-            "forest_witch": {
-                "name": "Willow",
-                "description": "An ageless woman with green eyes and clothes made of leaves and vines.",
-                "dialog": "The forest speaks of your arrival. Perhaps you are the one foretold in my visions."
-            },
-            "ghostly_figure": {
-                "name": "The Archivist",
-                "description": "A translucent figure in ancient scholarly robes.",
-                "dialog": "Seeker of knowledge... these ruins hold dangerous secrets. Proceed with caution."
-            },
-            "treasure_hunter": {
-                "name": "Caleb Drake",
-                "description": "A rugged man with a scar across his face and well-worn expedition gear.",
-                "dialog": "This place is filled with traps and puzzles. I've been trying to reach the central chamber for weeks."
-            },
-            "bard": {
-                "name": "Melody Silverharp",
-                "description": "A charismatic elf with a beautiful voice and an ornate lute.",
-                "dialog": "Care to hear a tale of ancient heroes? Or perhaps you'll create a legend of your own!"
-            },
-            "mysterious_stranger": {
-                "name": "The Hooded One",
-                "description": "A cloaked figure sitting alone in the corner, face obscured.",
-                "dialog": "You have the look of someone searching for something. Perhaps we can help each other..."
-            }
-        }
+        # Get quest data from game_objectives module
+        self.main_quests = game_objectives.MAIN_QUESTS
+        self.side_quests = game_objectives.SIDE_QUESTS
         
-        # Define quests
-        self.quests = {
-            "village_troubles": {
-                "name": "Village Troubles",
-                "giver": "village_elder",
-                "description": "The village has been experiencing strange occurrences lately. Investigate the cause.",
-                "objectives": ["speak_to_witnesses", "check_forest_edge", "confront_culprit"],
-                "rewards": {"exp": 100, "gold": 50}
-            },
-            "missing_shipment": {
-                "name": "The Missing Shipment",
-                "giver": "blacksmith",
-                "description": "A shipment of rare metals hasn't arrived. Find out what happened to it.",
-                "objectives": ["check_road", "find_cart", "deal_with_bandits"],
-                "rewards": {"exp": 150, "gold": 75, "item": "quality_hammer"}
-            },
-            "forest_spirits": {
-                "name": "Appeasing the Forest Spirits",
-                "giver": "forest_witch",
-                "description": "The forest spirits are restless. Gather ingredients for a calming ritual.",
-                "objectives": ["gather_moonflowers", "collect_clear_water", "find_ancient_stone", "return_to_witch"],
-                "rewards": {"exp": 200, "gold": 50, "item": "nature_amulet"}
-            }
-        }
+        # Combine all quests into a single dictionary for easier access
+        self.quests = {}
+        for quest in self.main_quests:
+            self.quests[quest["id"]] = quest
+        for quest in self.side_quests:
+            self.quests[quest["id"]] = quest
+            
+        # Initialize game time
+        self.game_hour = game_world.GAME_RULES["time"]["starting_hour"]
+        self.game_day = 1
+        self.update_time_of_day()
+        
+    def update_time_of_day(self):
+        """Update the time of day based on the current game hour."""
+        if 5 <= self.game_hour < 12:
+            self.time_of_day = "morning"
+        elif 12 <= self.game_hour < 17:
+            self.time_of_day = "afternoon"
+        elif 17 <= self.game_hour < 21:
+            self.time_of_day = "evening"
+        else:
+            self.time_of_day = "night"
     
     def process_command(self, command, character, game_state):
         """Process a player command and update game state accordingly."""
+        # First, check if the command contains any content that should be filtered
+        is_appropriate, rejection_message = filtering_toxicity.check_player_input(command)
+        if not is_appropriate:
+            return {
+                "context": rejection_message,
+                "new_location": None,
+                "image_prompt": "Um aventureiro em uma floresta pacífica"  # Safe default image
+            }
+            
         command = command.lower().strip()
         result = {
             "context": "",
@@ -152,94 +76,290 @@ class GameEngine:
         
         # Get current location data
         current_location = game_state.current_location
-        location_data = self.world_data.get(current_location, {})
+        if current_location in self.world_data:
+            location_data = self.world_data[current_location]
+            location_description = game_world.get_location_description(current_location, self.time_of_day)
+        else:
+            # Fallback to Meadowbrook if location not found
+            current_location = game_world.WORLD_CONFIG["starting_location"]
+            location_data = self.world_data[current_location]
+            location_description = game_world.get_location_description(current_location, self.time_of_day)
+            game_state.current_location = current_location
         
-        # Process movement commands
-        if command.startswith("go to ") or command.startswith("travel to ") or command.startswith("visit "):
-            destination = command.split(" to " if " to " in command else " ")[-1].strip()
+        # Check for quests available in this location
+        available_quests = []
+        if "quests" in location_data:
+            for quest_id in location_data["quests"]:
+                quest = game_objectives.get_quest_by_id(quest_id)
+                if quest:
+                    available_quests.append(quest)
+        
+        # Process movement commands (in Portuguese)
+        if (command.startswith("ir para ") or command.startswith("viajar para ") or 
+            command.startswith("visitar ") or command.startswith("ir a ")):
+            destination = command.split(" para " if " para " in command else " a " if " a " in command else " ")[-1].strip()
             
             # Check if destination is a valid connection
             for connection in location_data.get("connections", []):
                 conn_name = self.world_data[connection]["name"].lower()
                 if destination in conn_name.lower() or destination in connection.lower():
+                    # Valid movement - advance game time
+                    self.advance_game_time(1)  # 1 hour to travel
+                    
                     # Valid movement
                     result["new_location"] = connection
                     new_location_data = self.world_data[connection]
-                    result["context"] = f"You have arrived at {new_location_data['name']}. {new_location_data['description']}"
-                    result["image_prompt"] = f"A view of {new_location_data['name']}, {new_location_data['description']}"
+                    new_location_description = game_world.get_location_description(connection, self.time_of_day)
+                    
+                    result["context"] = f"Você chegou a {new_location_data['name']}. {new_location_description}"
+                    result["image_prompt"] = game_world.get_location_image_prompt(connection, self.time_of_day, character)
                     return result
             
             # Invalid movement
-            result["context"] = f"You cannot go to {destination} from here. Available locations: " + ", ".join([self.world_data[conn]["name"] for conn in location_data.get("connections", [])])
-            result["image_prompt"] = f"A confused adventurer in {location_data.get('name', 'the current location')}, looking at a map"
+            result["context"] = f"Você não pode ir para {destination} daqui. Locais disponíveis: " + ", ".join([self.world_data[conn]["name"] for conn in location_data.get("connections", [])])
+            result["image_prompt"] = f"Um aventureiro confuso em {location_data.get('name', 'o local atual')}, olhando para um mapa"
             return result
             
         # Process talk/speak commands
-        elif command.startswith("talk to ") or command.startswith("speak to ") or command.startswith("talk with "):
-            npc_name = command.split(" to " if " to " in command else " with ")[-1].strip()
+        elif (command.startswith("falar com ") or command.startswith("conversar com ") or 
+              command.startswith("perguntar a ")):
+            npc_name = command.split(" com " if " com " in command else " a ")[-1].strip()
             
             # Check if NPC is in current location
             for npc_id in location_data.get("npcs", []):
                 npc_data = self.npcs.get(npc_id, {})
                 if npc_name in npc_data.get("name", "").lower() or npc_name in npc_id.lower():
                     # Valid NPC interaction
-                    result["context"] = f"You approach {npc_data['name']}. {npc_data['description']} The NPC says: '{npc_data['dialog']}'"
-                    result["image_prompt"] = f"A character talking to {npc_data['name']}, {npc_data['description']}, in {location_data.get('name', 'the current location')}"
+                    # Get the appropriate dialogue type
+                    dialogue_type = "greeting"
+                    
+                    # Check if NPC offers quests
+                    if "quests" in npc_data:
+                        for quest_id in npc_data["quests"]:
+                            quest = game_objectives.get_quest_by_id(quest_id)
+                            if quest:
+                                # If player doesn't have this quest yet, offer it
+                                quest_progress = json.loads(game_state.quest_progress)
+                                if "completed_quests" in quest_progress and quest_id not in quest_progress["completed_quests"]:
+                                    dialogue_type = "quest_offer"
+                    
+                    dialogue = game_world.generate_npc_dialogue(npc_id, dialogue_type, character.__dict__)
+                    
+                    result["context"] = f"Você se aproxima de {npc_data['name']}. {npc_data['description']} O NPC diz: '{dialogue}'"
+                    result["image_prompt"] = f"{character.name}, um aventureiro, conversando com {npc_data['name']}, {npc_data['description']}, em {location_data.get('name', 'o local atual')}"
                     return result
             
             # Invalid NPC
-            result["context"] = f"There is no one called {npc_name} here. Available NPCs: " + ", ".join([self.npcs[npc]["name"] for npc in location_data.get("npcs", [])])
-            result["image_prompt"] = f"A character looking around for someone in {location_data.get('name', 'the current location')}"
+            result["context"] = f"Não há ninguém chamado {npc_name} aqui. NPCs disponíveis: " + ", ".join([self.npcs[npc]["name"] for npc in location_data.get("npcs", [])])
+            result["image_prompt"] = f"Um aventureiro procurando por alguém em {location_data.get('name', 'o local atual')}"
             return result
             
         # Process look/examine commands
-        elif command.startswith("look") or command.startswith("examine") or command == "look around":
-            result["context"] = f"You are in {location_data.get('name', 'an unknown location')}. {location_data.get('description', '')} You can see: " + ", ".join([self.npcs[npc]["name"] for npc in location_data.get("npcs", [])])
-            result["image_prompt"] = f"A detailed view of {location_data.get('name', 'the current location')}, {location_data.get('description', '')}"
+        elif (command.startswith("olhar") or command.startswith("examinar") or command == "olhar ao redor" or
+             command == "observar" or command == "ver"):
+            npcs_here = []
+            if "npcs" in location_data:
+                npcs_here = [self.npcs[npc]["name"] for npc in location_data.get("npcs", []) if npc in self.npcs]
+            
+            if npcs_here:
+                result["context"] = f"Você está em {location_data.get('name', 'um lugar desconhecido')}. {location_description} Você pode ver: {', '.join(npcs_here)}."
+            else:
+                result["context"] = f"Você está em {location_data.get('name', 'um lugar desconhecido')}. {location_description} Não há ninguém por perto."
+                
+            result["image_prompt"] = game_world.get_location_image_prompt(current_location, self.time_of_day, character.__dict__)
             return result
             
         # Process help command
-        elif command == "help":
-            result["context"] = """Available commands:
-            - go to [location]: Travel to a connected location
-            - talk to [npc]: Speak with an NPC
-            - look/examine: Examine your surroundings
-            - help: Show this help message
-            - inventory: Check your inventory
-            - status: Check your character status"""
-            result["image_prompt"] = f"A scroll or book showing a list of commands, in a fantasy setting"
+        elif command == "ajuda" or command == "help":
+            result["context"] = """Comandos disponíveis:
+            - ir para [local]: Viajar para um local conectado
+            - falar com [npc]: Conversar com um NPC
+            - olhar/examinar: Examinar seus arredores
+            - ajuda: Mostrar esta mensagem de ajuda
+            - inventário: Verificar seu inventário
+            - status: Verificar o status do seu personagem
+            - missões: Ver suas missões atuais
+            - descansar: Descansar para recuperar saúde e mana
+            - equipar [item]: Equipar um item do seu inventário
+            - usar [item]: Usar um item do seu inventário"""
+            result["image_prompt"] = f"Um pergaminho ou livro mostrando uma lista de comandos, em um cenário de fantasia"
             return result
             
         # Process inventory command
-        elif command == "inventory":
-            inventory = json.loads(game_state.inventory)
-            if inventory:
-                items_list = ", ".join([f"{count}x {item}" for item, count in inventory.items()])
-                result["context"] = f"Your inventory contains: {items_list}"
-            else:
-                result["context"] = "Your inventory is empty."
-            result["image_prompt"] = f"An open backpack or inventory of {character.name} showing various fantasy items"
+        elif command == "inventário" or command == "inventory" or command == "itens" or command == "mochila":
+            # Use our inventory system to get a nice display
+            inventory_data = json.loads(game_state.inventory)
+            inventory_display = inventory_system.get_inventory_display(character.name, inventory_data)
+            
+            result["context"] = inventory_display["text"]
+            result["image_prompt"] = f"{character.name}, um aventureiro, Uma mochila ou inventário aberto mostrando vários itens de fantasia"
             return result
             
         # Process status command
-        elif command == "status" or command == "character" or command == "stats":
+        elif command == "status" or command == "personagem" or command == "atributos" or command == "stats":
+            class_name = game_world.CHARACTER_CLASSES[character.character_class]["name"]
+            
             result["context"] = f"""
-            Name: {character.name}
-            Class: {character.character_class}
-            Level: {character.level}
-            Experience: {character.experience}
-            Health: {character.health}/100
+            Nome: {character.name}
+            Classe: {class_name}
+            Nível: {character.level}
+            Experiência: {character.experience}
+            Saúde: {character.health}/100
             Mana: {character.mana}/100
-            Strength: {character.strength}
-            Intelligence: {character.intelligence}
-            Dexterity: {character.dexterity}
+            Força: {character.strength}
+            Inteligência: {character.intelligence}
+            Destreza: {character.dexterity}
             """
-            result["image_prompt"] = f"A character sheet or status screen showing {character.name}, a {character.character_class}"
+            result["image_prompt"] = f"{character.name}, um {class_name}, posando heroicamente, mostrando seus atributos e equipamentos"
+            return result
+            
+        # Process quests command
+        elif command == "missões" or command == "quests" or command == "objetivos":
+            # Parse quest progress from game state
+            quest_progress = json.loads(game_state.quest_progress)
+            completed_quests = quest_progress.get("completed_quests", [])
+            
+            # Get available quests for this character
+            available_quests = game_objectives.get_available_quests(
+                character.level, 
+                completed_quests, 
+                current_location
+            )
+            
+            if not available_quests:
+                result["context"] = "Você não tem missões ativas no momento."
+            else:
+                quest_text = "Suas missões atuais:\n\n"
+                for quest in available_quests:
+                    quest_text += f"- {quest['title']}: {quest['description']}\n  Objetivo: {quest['objective']}\n\n"
+                result["context"] = quest_text
+                
+            result["image_prompt"] = f"{character.name}, um aventureiro, olhando para um pergaminho de missões em {location_data.get('name', 'o local atual')}"
+            return result
+            
+        # Process rest command
+        elif command == "descansar" or command == "dormir" or command == "acampar" or command == "rest":
+            # Check if location is safe for resting
+            danger_level = location_data.get("danger_level", 0)
+            
+            if danger_level >= 4:
+                result["context"] = "Este local é muito perigoso para descansar. Encontre um lugar mais seguro."
+                result["image_prompt"] = f"{character.name} incapaz de descansar em um lugar perigoso"
+                return result
+                
+            # Advance game time
+            self.advance_game_time(8)  # 8 hours of rest
+            
+            # Calculate recovery based on game rules
+            health_recovery = int(100 * game_world.GAME_RULES["rest"]["health_recovery"])
+            mana_recovery = int(100 * game_world.GAME_RULES["rest"]["mana_recovery"])
+            
+            character.health = min(100, character.health + health_recovery)
+            character.mana = min(100, character.mana + mana_recovery)
+            
+            result["context"] = f"Você descansou por algumas horas. Recuperou {health_recovery} de saúde e {mana_recovery} de mana. Agora é {self.time_of_day}."
+            result["image_prompt"] = f"{character.name} descansando em um acampamento durante o {self.time_of_day} em {location_data.get('name', 'um local')}"
+            return result
+        
+        # Process equip command
+        elif command.startswith("equipar ") or command.startswith("equip "):
+            item_name = command.split(" ", 1)[1].strip()
+            
+            # Check if item exists in inventory
+            inventory_data = json.loads(game_state.inventory)
+            
+            # Find the item_id from the name
+            item_id = None
+            for id, item in inventory_system.BASE_ITEMS.items():
+                if item["name"].lower() == item_name.lower():
+                    item_id = id
+                    break
+            
+            if not item_id or item_id not in inventory_data.get("items", {}):
+                result["context"] = f"Você não tem {item_name} no seu inventário."
+                return result
+                
+            # Equip the item
+            inventory_data, character_stats, message = inventory_system.equip_item(
+                inventory_data, 
+                item_id, 
+                character.__dict__
+            )
+            
+            # Update game state with new inventory
+            game_state.inventory = json.dumps(inventory_data)
+            
+            result["context"] = message
+            result["image_prompt"] = f"{character.name} equipando {item_name} em {location_data.get('name', 'o local atual')}"
+            return result
+            
+        # Process use item command
+        elif command.startswith("usar ") or command.startswith("use ") or command.startswith("beber ") or command.startswith("comer "):
+            item_name = command.split(" ", 1)[1].strip()
+            
+            # Check if item exists in inventory
+            inventory_data = json.loads(game_state.inventory)
+            
+            # Find the item_id from the name
+            item_id = None
+            for id, item in inventory_system.BASE_ITEMS.items():
+                if item["name"].lower() == item_name.lower():
+                    item_id = id
+                    break
+            
+            if not item_id or item_id not in inventory_data.get("items", {}):
+                result["context"] = f"Você não tem {item_name} no seu inventário."
+                return result
+                
+            # Use the item
+            inventory_data, character_stats, message = inventory_system.use_item(
+                inventory_data, 
+                item_id, 
+                character.__dict__
+            )
+            
+            # Update character stats
+            if character_stats:
+                if "health" in character_stats:
+                    character.health = character_stats["health"]
+                if "mana" in character_stats:
+                    character.mana = character_stats["mana"]
+            
+            # Update game state with new inventory
+            game_state.inventory = json.dumps(inventory_data)
+            
+            result["context"] = message
+            result["image_prompt"] = f"{character.name} usando {item_name} em {location_data.get('name', 'o local atual')}"
             return result
             
         # Generic response for unrecognized commands
         else:
-            # Send the command to AI service for interpretation
-            result["context"] = f"You attempt to {command} in {location_data.get('name', 'the current location')}."
-            result["image_prompt"] = f"Character attempting to {command} in {location_data.get('name', 'the current location')}"
+            # First check if the command should be filtered
+            safe_command = filtering_toxicity.safe_ai_request(
+                f"O jogador diz: '{command}' no RPG",
+                lambda x: x  # Identity function since we're just filtering
+            )
+            
+            # Send the command to AI service for interpretation (with safety)
+            prompt = f"Você é {character.name}, um aventureiro em {location_data.get('name', 'um local desconhecido')}. Você tenta: {safe_command}. Descreva o resultado dessa ação no contexto do mundo de fantasia e do local atual."
+            
+            ai_response = filtering_toxicity.safe_ai_request(
+                prompt,
+                generate_text_response
+            )
+            
+            result["context"] = ai_response
+            result["image_prompt"] = f"{character.name} tentando {safe_command} em {location_data.get('name', 'o local atual')}"
             return result
+            
+    def advance_game_time(self, hours):
+        """Advance the game time by a number of hours."""
+        self.game_hour += hours
+        
+        # Handle day change
+        while self.game_hour >= 24:
+            self.game_hour -= 24
+            self.game_day += 1
+            
+        # Update time of day
+        self.update_time_of_day()

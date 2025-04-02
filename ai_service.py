@@ -13,20 +13,20 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 def generate_text_response(prompt):
     """
-    Generate a text response using OpenAI's GPT model.
+    Generate a text response using OpenAI's GPT model in Portuguese.
     
     Args:
         prompt (str): The prompt to send to the OpenAI API
         
     Returns:
-        str: The generated text response
+        str: The generated text response in Portuguese
     """
     try:
         # Using gpt-3.5-turbo which is more widely available
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are an advanced fantasy RPG game master. Provide immersive, detailed responses that enhance the player's experience."},
+                {"role": "system", "content": "Você é um mestre de RPG de fantasia avançado. Forneça respostas imersivas e detalhadas em português que enriqueçam a experiência do jogador. Use linguagem rica e descritiva para mundos de fantasia."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=500,
@@ -35,7 +35,7 @@ def generate_text_response(prompt):
         return response.choices[0].message.content.strip()
     except Exception as e:
         logger.error(f"Error generating text: {e}")
-        return "The ancient magic that powers this realm seems to be temporarily weakened. (Error communicating with AI service)"
+        return "A magia antiga que alimenta este reino parece estar temporariamente enfraquecida. (Erro ao comunicar com o serviço de IA)"
 
 def generate_image(prompt):
     """
@@ -67,10 +67,10 @@ def create_placeholder_image():
     <svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
       <rect width="1024" height="1024" fill="#2c3e50"/>
       <text x="512" y="480" font-family="Arial" font-size="40" text-anchor="middle" fill="#ecf0f1">
-        Image generation failed
+        Falha na geração da imagem
       </text>
       <text x="512" y="540" font-family="Arial" font-size="30" text-anchor="middle" fill="#ecf0f1">
-        Please try again later
+        Por favor, tente novamente mais tarde
       </text>
     </svg>
     """
@@ -78,10 +78,10 @@ def create_placeholder_image():
 
 def parse_game_action(action_text):
     """
-    Parse complex player actions into structured game actions.
+    Parse complex player actions in Portuguese into structured game actions.
     
     Args:
-        action_text (str): The player's raw action text
+        action_text (str): The player's raw action text in Portuguese
         
     Returns:
         dict: Structured action data
@@ -91,8 +91,8 @@ def parse_game_action(action_text):
         response = client.chat.completions.create(
             model="o3-mini",
             messages=[
-                {"role": "system", "content": "You are an AI that parses player commands in an RPG game. Extract the action type and relevant details from the player's input. Respond with a JSON object."},
-                {"role": "user", "content": f"Parse this player action into a structured format: '{action_text}'. Respond with a valid JSON object having action_type, target, and details fields."}
+                {"role": "system", "content": "Você é uma IA que analisa comandos de jogadores em um jogo de RPG em português. Extraia o tipo de ação e detalhes relevantes da entrada do jogador. Responda com um objeto JSON."},
+                {"role": "user", "content": f"Analise esta ação do jogador em um formato estruturado: '{action_text}'. Responda com um objeto JSON válido tendo os campos action_type, target e details."}
             ],
             temperature=0.3
         )
