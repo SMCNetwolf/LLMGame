@@ -188,12 +188,34 @@ class GameEngine:
         # Process inventory command
         elif command == "inventário" or command == "inventory" or command == "itens" or command == "mochila":
             # Use our inventory system to get a nice display
-            inventory_data = json.loads(game_state.inventory)
-            inventory_display = inventory_system.get_inventory_display(character.name, inventory_data)
-            
-            result["context"] = inventory_display["text"]
-            result["image_prompt"] = f"{character.name}, um aventureiro, Uma mochila ou inventário aberto mostrando vários itens de fantasia"
-            return result
+            try:
+                # Verificar se o inventário existe e é válido
+                inventory_data = {}
+                if not game_state.inventory:
+                    logging.warning(f"Inventário vazio para personagem {character.id} ao processar comando")
+                    inventory_data = inventory_system.initialize_inventory(character.id)
+                    game_state.inventory = json.dumps(inventory_data)
+                else:
+                    try:
+                        inventory_data = json.loads(game_state.inventory)
+                        if not isinstance(inventory_data, dict):
+                            raise ValueError("Formato de inventário inválido")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logging.error(f"Erro ao carregar inventário: {e}")
+                        inventory_data = inventory_system.initialize_inventory(character.id)
+                        game_state.inventory = json.dumps(inventory_data)
+                
+                # Obter a exibição do inventário com tratamento de exceções
+                inventory_display = inventory_system.get_inventory_display(character.name, inventory_data)
+                
+                result["context"] = inventory_display["text"]
+                result["image_prompt"] = inventory_display.get("image_url", f"{character.name}, um aventureiro, Uma mochila ou inventário aberto mostrando vários itens de fantasia")
+                return result
+            except Exception as e:
+                logging.error(f"Erro ao processar comando de inventário: {e}")
+                result["context"] = "Você tenta verificar seu inventário, mas sua mochila parece estar presa. (Erro ao processar comando de inventário)"
+                result["image_prompt"] = f"{character.name} tentando abrir uma mochila presa"
+                return result
             
         # Process status command
         elif command == "status" or command == "personagem" or command == "atributos" or command == "stats":
@@ -263,74 +285,114 @@ class GameEngine:
         
         # Process equip command
         elif command.startswith("equipar ") or command.startswith("equip "):
-            item_name = command.split(" ", 1)[1].strip()
-            
-            # Check if item exists in inventory
-            inventory_data = json.loads(game_state.inventory)
-            
-            # Find the item_id from the name
-            item_id = None
-            for id, item in inventory_system.BASE_ITEMS.items():
-                if item["name"].lower() == item_name.lower():
-                    item_id = id
-                    break
-            
-            if not item_id or item_id not in inventory_data.get("items", {}):
-                result["context"] = f"Você não tem {item_name} no seu inventário."
-                return result
+            try:
+                item_name = command.split(" ", 1)[1].strip()
                 
-            # Equip the item
-            inventory_data, character_stats, message = inventory_system.equip_item(
-                inventory_data, 
-                item_id, 
-                character.__dict__
-            )
-            
-            # Update game state with new inventory
-            game_state.inventory = json.dumps(inventory_data)
-            
-            result["context"] = message
-            result["image_prompt"] = f"{character.name} equipando {item_name} em {location_data.get('name', 'o local atual')}"
-            return result
+                # Verificar se o inventário existe e é válido
+                inventory_data = {}
+                try:
+                    if not game_state.inventory:
+                        logging.warning(f"Inventário vazio para personagem {character.id} ao equipar item")
+                        inventory_data = inventory_system.initialize_inventory(character.id)
+                        game_state.inventory = json.dumps(inventory_data)
+                    else:
+                        inventory_data = json.loads(game_state.inventory)
+                        if not isinstance(inventory_data, dict):
+                            raise ValueError("Formato de inventário inválido")
+                except (json.JSONDecodeError, ValueError) as e:
+                    logging.error(f"Erro ao carregar inventário para equipar item: {e}")
+                    inventory_data = inventory_system.initialize_inventory(character.id)
+                    game_state.inventory = json.dumps(inventory_data)
+                
+                # Find the item_id from the name
+                item_id = None
+                for id, item in inventory_system.BASE_ITEMS.items():
+                    if item["name"].lower() == item_name.lower():
+                        item_id = id
+                        break
+                
+                if not item_id or item_id not in inventory_data.get("items", {}):
+                    result["context"] = f"Você não tem {item_name} no seu inventário."
+                    result["image_prompt"] = f"{character.name} procurando por {item_name} na mochila sem sucesso"
+                    return result
+                    
+                # Equip the item
+                inventory_data, character_stats, message = inventory_system.equip_item(
+                    inventory_data, 
+                    item_id, 
+                    character.__dict__
+                )
+                
+                # Update game state with new inventory
+                game_state.inventory = json.dumps(inventory_data)
+                
+                result["context"] = message
+                result["image_prompt"] = f"{character.name} equipando {item_name} em {location_data.get('name', 'o local atual')}"
+                return result
+            except Exception as e:
+                logging.error(f"Erro ao processar comando de equipar: {e}")
+                result["context"] = f"Você tenta equipar algo, mas encontra dificuldade. (Erro ao processar comando)"
+                result["image_prompt"] = f"{character.name} com dificuldade para manusear equipamentos"
+                return result
             
         # Process use item command
         elif command.startswith("usar ") or command.startswith("use ") or command.startswith("beber ") or command.startswith("comer "):
-            item_name = command.split(" ", 1)[1].strip()
-            
-            # Check if item exists in inventory
-            inventory_data = json.loads(game_state.inventory)
-            
-            # Find the item_id from the name
-            item_id = None
-            for id, item in inventory_system.BASE_ITEMS.items():
-                if item["name"].lower() == item_name.lower():
-                    item_id = id
-                    break
-            
-            if not item_id or item_id not in inventory_data.get("items", {}):
-                result["context"] = f"Você não tem {item_name} no seu inventário."
-                return result
+            try:
+                item_name = command.split(" ", 1)[1].strip()
                 
-            # Use the item
-            inventory_data, character_stats, message = inventory_system.use_item(
-                inventory_data, 
-                item_id, 
-                character.__dict__
-            )
-            
-            # Update character stats
-            if character_stats:
-                if "health" in character_stats:
-                    character.health = character_stats["health"]
-                if "mana" in character_stats:
-                    character.mana = character_stats["mana"]
-            
-            # Update game state with new inventory
-            game_state.inventory = json.dumps(inventory_data)
-            
-            result["context"] = message
-            result["image_prompt"] = f"{character.name} usando {item_name} em {location_data.get('name', 'o local atual')}"
-            return result
+                # Verificar se o inventário existe e é válido
+                inventory_data = {}
+                try:
+                    if not game_state.inventory:
+                        logging.warning(f"Inventário vazio para personagem {character.id} ao usar item")
+                        inventory_data = inventory_system.initialize_inventory(character.id)
+                        game_state.inventory = json.dumps(inventory_data)
+                    else:
+                        inventory_data = json.loads(game_state.inventory)
+                        if not isinstance(inventory_data, dict):
+                            raise ValueError("Formato de inventário inválido")
+                except (json.JSONDecodeError, ValueError) as e:
+                    logging.error(f"Erro ao carregar inventário para usar item: {e}")
+                    inventory_data = inventory_system.initialize_inventory(character.id)
+                    game_state.inventory = json.dumps(inventory_data)
+                
+                # Find the item_id from the name
+                item_id = None
+                for id, item in inventory_system.BASE_ITEMS.items():
+                    if item["name"].lower() == item_name.lower():
+                        item_id = id
+                        break
+                
+                if not item_id or item_id not in inventory_data.get("items", {}):
+                    result["context"] = f"Você não tem {item_name} no seu inventário."
+                    result["image_prompt"] = f"{character.name} procurando por {item_name} na mochila sem sucesso"
+                    return result
+                    
+                # Use the item
+                inventory_data, character_stats, message = inventory_system.use_item(
+                    inventory_data, 
+                    item_id, 
+                    character.__dict__
+                )
+                
+                # Update character stats
+                if character_stats:
+                    if "health" in character_stats:
+                        character.health = character_stats["health"]
+                    if "mana" in character_stats:
+                        character.mana = character_stats["mana"]
+                
+                # Update game state with new inventory
+                game_state.inventory = json.dumps(inventory_data)
+                
+                result["context"] = message
+                result["image_prompt"] = f"{character.name} usando {item_name} em {location_data.get('name', 'o local atual')}"
+                return result
+            except Exception as e:
+                logging.error(f"Erro ao processar comando de usar item: {e}")
+                result["context"] = f"Você tenta usar um item, mas algo dá errado. (Erro ao processar comando)"
+                result["image_prompt"] = f"{character.name} com dificuldade para usar um item em sua mochila"
+                return result
             
         # Generic response for unrecognized commands
         else:

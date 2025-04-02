@@ -392,46 +392,84 @@ def get_inventory_summary(inventory):
     Returns:
         str: A formatted summary of the inventory
     """
-    gold = inventory["gold"]
-    weight = inventory["capacity"]["current_weight"]
-    max_weight = inventory["capacity"]["max_weight"]
-    
-    summary = f"Ouro: {gold}\n"
-    summary += f"Peso: {weight}/{max_weight}\n\n"
-    
-    # Add equipped items
-    summary += "Equipado:\n"
-    for slot, item_id in inventory["equipped"].items():
-        if item_id:
-            item_name = BASE_ITEMS[item_id]["name"]
-            summary += f"  {slot.capitalize()}: {item_name}\n"
-        else:
-            summary += f"  {slot.capitalize()}: Nada equipado\n"
-    
-    summary += "\nItens:\n"
-    
-    # Group items by category
-    items_by_category = {}
-    for item_id, item_data in inventory["items"].items():
-        category = BASE_ITEMS[item_id]["category"]
-        if category not in items_by_category:
-            items_by_category[category] = []
+    try:
+        # Verificar se o inventário tem a estrutura correta
+        if not isinstance(inventory, dict):
+            logger.error(f"Inventário inválido em get_inventory_summary: {inventory}")
+            return "Inventário vazio ou com problema."
+            
+        # Garantir que todas as chaves existam
+        if "gold" not in inventory:
+            inventory["gold"] = 0
+        if "capacity" not in inventory:
+            inventory["capacity"] = {"current_weight": 0, "max_weight": 50}
+        if "current_weight" not in inventory["capacity"]:
+            inventory["capacity"]["current_weight"] = 0
+        if "max_weight" not in inventory["capacity"]:
+            inventory["capacity"]["max_weight"] = 50
+        if "equipped" not in inventory:
+            inventory["equipped"] = {"weapon": None, "armor": None, "accessory": None}
+        if "items" not in inventory:
+            inventory["items"] = {}
         
-        items_by_category[category].append({
-            "id": item_id,
-            "name": BASE_ITEMS[item_id]["name"],
-            "quantity": item_data["quantity"]
-        })
-    
-    # Add items by category
-    for category, items in items_by_category.items():
-        category_name = ITEM_CATEGORIES.get(category, category.capitalize())
-        summary += f"  {category_name}:\n"
+        gold = inventory["gold"]
+        weight = inventory["capacity"]["current_weight"]
+        max_weight = inventory["capacity"]["max_weight"]
         
-        for item in items:
-            summary += f"    {item['name']} (x{item['quantity']})\n"
-    
-    return summary
+        summary = f"Ouro: {gold}\n"
+        summary += f"Peso: {weight}/{max_weight}\n\n"
+        
+        # Add equipped items
+        summary += "Equipado:\n"
+        for slot, item_id in inventory["equipped"].items():
+            if item_id and item_id in BASE_ITEMS:
+                item_name = BASE_ITEMS[item_id]["name"]
+                summary += f"  {slot.capitalize()}: {item_name}\n"
+            else:
+                summary += f"  {slot.capitalize()}: Nada equipado\n"
+        
+        summary += "\nItens:\n"
+        
+        # Se não houver itens, indicar isso
+        if not inventory["items"]:
+            summary += "  Nenhum item na mochila.\n"
+            return summary
+        
+        # Group items by category
+        items_by_category = {}
+        for item_id, item_data in inventory["items"].items():
+            # Skip if item_id not in BASE_ITEMS
+            if item_id not in BASE_ITEMS:
+                logger.warning(f"Item desconhecido no inventário: {item_id}")
+                continue
+                
+            category = BASE_ITEMS[item_id]["category"]
+            if category not in items_by_category:
+                items_by_category[category] = []
+            
+            items_by_category[category].append({
+                "id": item_id,
+                "name": BASE_ITEMS[item_id]["name"],
+                "quantity": item_data.get("quantity", 1)
+            })
+        
+        # Se não houver itens válidos, indicar isso
+        if not items_by_category:
+            summary += "  Nenhum item válido na mochila.\n"
+            return summary
+        
+        # Add items by category
+        for category, items in items_by_category.items():
+            category_name = ITEM_CATEGORIES.get(category, category.capitalize())
+            summary += f"  {category_name}:\n"
+            
+            for item in items:
+                summary += f"    {item['name']} (x{item['quantity']})\n"
+        
+        return summary
+    except Exception as e:
+        logger.error(f"Erro ao gerar resumo do inventário: {e}")
+        return "Inventário indisponível no momento. (Erro ao processar)"
 
 def generate_inventory_prompt(character_name, inventory):
     """
@@ -465,19 +503,52 @@ def get_inventory_display(character_name, inventory, include_image=True):
     Returns:
         dict: Inventory display data with text and optionally an image
     """
-    prompt = generate_inventory_prompt(character_name, inventory)
-    inventory_description = generate_text_response(prompt)
-    
-    result = {
-        "text": inventory_description,
-        "summary": get_inventory_summary(inventory)
-    }
-    
-    if include_image:
-        image_prompt = f"{character_name}, um aventureiro, Uma mochila ou inventário aberto mostrando vários itens de fantasia. Cena de jogo RPG, ambientação de fantasia."
-        result["image_url"] = generate_image(image_prompt)
-    
-    return result
+    try:
+        # Verificar se o inventário tem a estrutura correta
+        if not isinstance(inventory, dict):
+            logger.error(f"Inventário inválido: {inventory}")
+            return {
+                "text": "Seu inventário parece estar vazio ou corrompido. (Erro ao processar inventário)",
+                "summary": "Inventário vazio ou com problema."
+            }
+            
+        # Inicializar inventário se estiver faltando dados
+        if "items" not in inventory:
+            inventory["items"] = {}
+        if "equipped" not in inventory:
+            inventory["equipped"] = {
+                "weapon": None,
+                "armor": None,
+                "accessory": None
+            }
+        if "gold" not in inventory:
+            inventory["gold"] = 0
+        if "capacity" not in inventory:
+            inventory["capacity"] = {
+                "current_weight": 0,
+                "max_weight": 50
+            }
+        
+        # Gerar descrição do inventário
+        prompt = generate_inventory_prompt(character_name, inventory)
+        inventory_description = generate_text_response(prompt)
+        
+        result = {
+            "text": inventory_description,
+            "summary": get_inventory_summary(inventory)
+        }
+        
+        if include_image:
+            image_prompt = f"{character_name}, um aventureiro, Uma mochila ou inventário aberto mostrando vários itens de fantasia. Cena de jogo RPG, ambientação de fantasia."
+            result["image_url"] = generate_image(image_prompt)
+        
+        return result
+    except Exception as e:
+        logger.error(f"Erro ao processar inventário: {e}")
+        return {
+            "text": "Você verifica sua mochila, mas está muito escuro para ver os itens claramente. (Erro ao processar comando)",
+            "summary": "Erro ao processar inventário"
+        }
 
 def save_inventory_to_file(inventory, character_id):
     """

@@ -256,8 +256,38 @@ def process_command():
     character = Character.query.get(character_id)
     game_state = GameState.query.filter_by(character_id=character_id).first()
     
+    # Verificar e garantir que o inventário do personagem seja válido
+    try:
+        if not game_state.inventory:
+            logging.warning(f"Inventário vazio para personagem {character.id}, inicializando novo")
+            new_inventory = inventory_system.initialize_inventory(character.id)
+            game_state.inventory = json.dumps(new_inventory)
+            db.session.commit()
+        else:
+            # Teste se o inventário é um JSON válido
+            try:
+                inventory_data = json.loads(game_state.inventory)
+                if not isinstance(inventory_data, dict):
+                    raise ValueError("Formato de inventário inválido")
+            except (json.JSONDecodeError, ValueError) as e:
+                logging.error(f"Inventário inválido para personagem {character.id}: {e}")
+                new_inventory = inventory_system.initialize_inventory(character.id)
+                game_state.inventory = json.dumps(new_inventory)
+                db.session.commit()
+    except Exception as e:
+        logging.error(f"Erro ao processar inventário: {e}")
+        # Não deixe o erro interromper o processamento do comando
+    
     # Process command through game engine
-    result = engine.process_command(command, character, game_state)
+    try:
+        result = engine.process_command(command, character, game_state)
+    except Exception as e:
+        logging.error(f"Erro no processamento do comando '{command}': {e}")
+        result = {
+            "context": "Houve um erro ao processar seu comando. (Algo deu errado no mundo do jogo)",
+            "new_location": None,
+            "image_prompt": f"{character.name} olhando confuso enquanto explora o mundo"
+        }
     
     # Generate text response from AI (in Portuguese)
     class_data = game_world.CHARACTER_CLASSES.get(character.character_class, {})
@@ -447,9 +477,20 @@ def generate_contextual_hint(character, game_state, command, result):
     import json
     inventory = {}
     try:
-        inventory = json.loads(game_state.inventory)
-    except:
-        pass
+        if game_state.inventory:
+            inventory = json.loads(game_state.inventory)
+        else:
+            # Se não houver inventário, inicialize um novo
+            logging.warning(f"Inventário vazio para personagem {character.id}")
+            inventory = inventory_system.initialize_inventory(character.id)
+            game_state.inventory = json.dumps(inventory)
+            db.session.commit()
+    except Exception as e:
+        logging.error(f"Erro ao carregar inventário: {e}")
+        # Criar um novo inventário se ocorrer um erro
+        inventory = inventory_system.initialize_inventory(character.id)
+        game_state.inventory = json.dumps(inventory)
+        db.session.commit()
         
     # Conjunto de dicas gerais
     general_hints = [
