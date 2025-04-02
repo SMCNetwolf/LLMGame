@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const gameImage = document.getElementById('gameImage');
     const loadingOverlay = document.querySelector('.image-loading-overlay');
     const suggestionButtons = document.querySelectorAll('.suggestion-btn');
+    const playIntroButton = document.getElementById('playIntroButton');
+    const audioIntroPlayer = document.getElementById('audioIntroPlayer');
+    const audioIntroContainer = document.getElementById('audioIntroContainer');
+    const audioIntroText = document.getElementById('audioIntroText');
     
     // Focus input field on page load
     commandInput.focus();
@@ -106,4 +110,76 @@ document.addEventListener('DOMContentLoaded', function() {
             commandInput.focus();
         }
     });
+    
+    // Função para reproduzir áudio de introdução do personagem
+    if (playIntroButton) {
+        playIntroButton.addEventListener('click', function() {
+            const audioId = this.getAttribute('data-audio-id');
+            if (!audioId) return;
+            
+            // Alterar o botão para indicar carregamento
+            playIntroButton.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+            playIntroButton.disabled = true;
+            
+            // Buscar os dados de áudio do servidor
+            fetch(`/character_audio/${audioId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro ao buscar áudio');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Converter dados de áudio base64 para blob
+                    const audioData = data.audio_data;
+                    const audioText = data.audio_text;
+                    
+                    // Criar URL do blob para o áudio
+                    const audioBlob = base64ToBlob(audioData, 'audio/mpeg');
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Configurar o player de áudio
+                    audioIntroPlayer.src = audioUrl;
+                    audioIntroText.textContent = audioText;
+                    
+                    // Mostrar o container de áudio
+                    audioIntroContainer.classList.remove('d-none');
+                    audioIntroContainer.classList.add('fade-in');
+                    
+                    // Reproduzir o áudio automaticamente
+                    audioIntroPlayer.play();
+                    
+                    // Restaurar o botão
+                    playIntroButton.innerHTML = '<i class="bi bi-volume-up"></i>';
+                    playIntroButton.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    // Restaurar o botão em caso de erro
+                    playIntroButton.innerHTML = '<i class="bi bi-volume-up"></i>';
+                    playIntroButton.disabled = false;
+                    alert('Erro ao carregar o áudio de introdução.');
+                });
+        });
+    }
+    
+    // Função para converter base64 para blob
+    function base64ToBlob(base64, mimeType) {
+        const byteCharacters = atob(base64);
+        const byteArrays = [];
+        
+        for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+            const slice = byteCharacters.slice(offset, offset + 512);
+            
+            const byteNumbers = new Array(slice.length);
+            for (let i = 0; i < slice.length; i++) {
+                byteNumbers[i] = slice.charCodeAt(i);
+            }
+            
+            const byteArray = new Uint8Array(byteNumbers);
+            byteArrays.push(byteArray);
+        }
+        
+        return new Blob(byteArrays, {type: mimeType});
+    }
 });

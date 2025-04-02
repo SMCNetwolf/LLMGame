@@ -34,9 +34,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
 # Import routes after app initialization to avoid circular imports
-from models import User, Character, GameState, GameImage
+from models import User, Character, GameState, GameImage, CharacterAudio
 from game_engine import GameEngine
-from ai_service import generate_text_response, generate_image
+from ai_service import generate_text_response, generate_image, generate_character_introduction_audio
 import inventory_system
 import game_world
 import game_objectives
@@ -140,10 +140,44 @@ def create_character():
         f"Você é o mestre de um RPG de fantasia. Crie uma introdução detalhada para um novo personagem chamado {name}, um {class_data.get('name', character_class)}. Descreva a vila inicial ({location_data['name']}) e mencione 3 possíveis locais que eles podem visitar ou pessoas com quem podem falar. Mantenha a resposta com menos de 300 palavras. Responda APENAS em português."
     )
     
+    # Generate character introduction audio
+    character_voice = "onyx"  # Default voice
+    if character_class.lower() in ["mago", "feiticeiro", "bardo"]:
+        character_voice = "nova"  # Magical classes
+    elif character_class.lower() in ["ladino", "arqueiro", "ranger"]:
+        character_voice = "echo"  # Dexterous classes
+    elif character_class.lower() in ["guerreiro", "bárbaro", "paladino"]:
+        character_voice = "shimmer"  # Warrior classes
+    
+    intro_audio_data = generate_character_introduction_audio(
+        name, 
+        class_data.get('name', character_class),
+        character_voice
+    )
+    
+    if intro_audio_data:
+        # Get the text that was generated for the audio introduction
+        # This requires modifying generate_character_introduction_audio to return both text and audio
+        intro_text = generate_text_response(
+            f"Crie uma introdução curta e dramática com cerca de 3 frases para {name}, um(a) {class_data.get('name', character_class)} em uma aventura de RPG. Fale na primeira pessoa, como se fosse o próprio personagem se apresentando. Mencione algo sobre a classe e a jornada que está por vir. Use linguagem épica e inspiradora. Mantenha a resposta com menos de 100 palavras."
+        )
+        
+        # Save the audio introduction
+        character_audio = CharacterAudio(
+            character_id=character.id,
+            audio_type="introduction",
+            audio_text=intro_text,
+            audio_data=intro_audio_data,
+            voice_type=character_voice
+        )
+        db.session.add(character_audio)
+        db.session.commit()
+    
     # Store initial scene in session
     session["current_scene"] = {
         "description": initial_description,
-        "image_id": new_image.id
+        "image_id": new_image.id,
+        "has_audio_intro": intro_audio_data is not None
     }
     
     return redirect(url_for("game"))
@@ -176,13 +210,25 @@ def game():
     
     # Get game history (last 5 images)
     history = GameImage.query.filter_by(character_id=character_id).order_by(GameImage.created_at.desc()).limit(5).all()
+    # Check if character has an audio introduction
+    has_audio_intro = False
+    intro_audio_id = None
+    
+    if "has_audio_intro" in current_scene and current_scene["has_audio_intro"]:
+        # Check if there's an audio introduction for this character
+        audio_intro = CharacterAudio.query.filter_by(character_id=character_id, audio_type="introduction").first()
+        if audio_intro:
+            has_audio_intro = True
+            intro_audio_id = audio_intro.id
     
     return render_template("game.html", 
                           character=character, 
                           game_state=game_state,
                           description=current_scene["description"],
                           image_url=image.image_url,
-                          history=history)
+                          history=history,
+                          has_audio_intro=has_audio_intro,
+                          intro_audio_id=intro_audio_id)
 
 @app.route("/command", methods=["POST"])
 def process_command():
@@ -313,5 +359,23 @@ def load_character(character_id):
     
     flash("Você não tem permissão para carregar este personagem", "error")
     return redirect(url_for("index"))
+
+# Endpoint para recuperar o áudio de introdução de um personagem
+@app.route("/character_audio/<int:audio_id>", methods=["GET"])
+def get_character_audio(audio_id):
+    audio = CharacterAudio.query.get(audio_id)
+    
+    if not audio:
+        return jsonify({"error": "Áudio não encontrado"}), 404
+    
+    # Verificar se o personagem pertence ao usuário atual
+    if "user_id" in session and Character.query.get(audio.character_id).user_id == session["user_id"]:
+        return jsonify({
+            "audio_data": audio.audio_data,
+            "audio_text": audio.audio_text,
+            "voice_type": audio.voice_type
+        })
+    
+    return jsonify({"error": "Acesso não autorizado"}), 403
 
 # Database tables are already created in the previous context

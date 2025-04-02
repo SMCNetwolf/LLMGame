@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import base64
 from openai import OpenAI
 
 # Configure logging
@@ -65,6 +66,57 @@ def create_placeholder_image():
     """Create a placeholder SVG when image generation fails."""
     # Return the path to the static placeholder image
     return "/static/placeholder.svg"
+
+def generate_audio(text, voice_type="onyx"):
+    """
+    Generate an audio file using OpenAI's TTS API.
+    
+    Args:
+        text (str): The text to convert to speech
+        voice_type (str): The voice type to use (alloy, echo, fable, onyx, nova, shimmer)
+        
+    Returns:
+        str: Base64 encoded audio data or None if an error occurs
+    """
+    try:
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice=voice_type,
+            input=text
+        )
+        
+        # Get the audio data and encode as base64
+        audio_data = response.content
+        base64_audio = base64.b64encode(audio_data).decode('utf-8')
+        return base64_audio
+    except Exception as e:
+        logger.error(f"Error generating audio: {e}")
+        return None
+
+def generate_character_introduction_audio(character_name, character_class, voice_type="onyx"):
+    """
+    Generate a personalized character introduction audio.
+    
+    Args:
+        character_name (str): The character's name
+        character_class (str): The character's class
+        voice_type (str): The voice type to use
+        
+    Returns:
+        tuple: (intro_text, base64_audio) or (None, None) if an error occurs
+    """
+    try:
+        # Generate the introduction text
+        intro_text = generate_text_response(
+            f"Crie uma introdução curta e dramática com cerca de 3 frases para {character_name}, um(a) {character_class} em uma aventura de RPG. Fale na primeira pessoa, como se fosse o próprio personagem se apresentando. Mencione algo sobre a classe e a jornada que está por vir. Use linguagem épica e inspiradora. Mantenha a resposta com menos de 100 palavras."
+        )
+        
+        # Generate the audio
+        audio_data = generate_audio(intro_text, voice_type)
+        return audio_data
+    except Exception as e:
+        logger.error(f"Error generating character introduction audio: {e}")
+        return None
 
 def parse_game_action(action_text):
     """
