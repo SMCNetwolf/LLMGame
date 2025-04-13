@@ -233,8 +233,8 @@ def filter_image_prompt(prompt):
     prompt_lower = prompt.lower()
     
     # Remover termos de metaprompt que podem disparar filtros
-    # Palavras como "tentando", "NetWolf", "gere", "GPT" podem disparar filtros
-    metaprompt_terms = ["netwolf", "tentando", "gpt", "gere ", "gerando", "openai", "dall-e"]
+    # Palavras como "tentando", "gere", "GPT" podem disparar filtros
+    metaprompt_terms = ["tentando", "gpt", "gere ", "gerando", "openai", "dall-e"]
     for term in metaprompt_terms:
         if term in prompt_lower:
             prompt = re.sub(re.escape(term), "", prompt, flags=re.IGNORECASE)

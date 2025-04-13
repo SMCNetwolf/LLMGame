@@ -27,7 +27,7 @@ def generate_text_response(prompt):
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Você é um mestre de RPG de fantasia avançado. Forneça respostas imersivas mas sucintas em português que enriqueçam a experiência do jogador."},
+                {"role": "system", "content": "Você é um mestre de RPG de fantasia avançado. Forneça respostas imersivas mas sucintas em português que enriqueçam a experiência do jogador. Use linguagem rica e descritiva para mundos de fantasia."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=500,
