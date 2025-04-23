@@ -1,0 +1,11 @@
+{
+  "name": "llmgame",
+  "version": "1.0.0",
+  "description": "A Flask starter template as per [these docs](https://flask.palletsprojects.com/en/3.0.x/quickstart/#a-minimal-application). # This project uses SQLite as its database instead of SQLAlchemy.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

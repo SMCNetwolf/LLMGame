@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG de Fantasia com IA - Aventura</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row game-interface">
+            <!-- Painel de Informações do Jogo (Barra Lateral Esquerda) -->
+            <div class="col-md-3 sidebar character-panel">
+                <div class="card bg-dark h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">{{ character.name }}</h4>
+                        <span class="badge bg-primary">Nível {{ character.level }}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="character-info">
+                            <p class="text-secondary mb-1">{{ character.character_class }}</p>
+                            
+                            <div class="stat-bar mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Saúde</span>
+                                    <span>{{ character.health }}/100</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ character.health }}%;" 
+                                        aria-valuenow="{{ character.health }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-bar mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Mana</span>
+                                    <span>{{ character.mana }}/100</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ character.mana }}%;" 
+                                        aria-valuenow="{{ character.mana }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-bar mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Experiência</span>
+                                    <span>{{ character.experience }}/{{ character.level * 100 }}</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                        style="width: {{ (character.experience / (character.level * 100)) * 100 }}%;" 
+                                        aria-valuenow="{{ character.experience }}" aria-valuemin="0" aria-valuemax="{{ character.level * 100 }}"></div>
+                                </div>
+                            </div>
+                            
+                            <h5 class="mt-4">Atributos</h5>
+                            <ul class="list-group list-group-flush attribute-list">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>Força</span>
+                                    <span class="badge bg-danger rounded-pill">{{ character.strength }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>Inteligência</span>
+                                    <span class="badge bg-primary rounded-pill">{{ character.intelligence }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>Destreza</span>
+                                    <span class="badge bg-success rounded-pill">{{ character.dexterity }}</span>
+                                </li>
+                            </ul>
+                            
+                            <h5 class="mt-4">Localização</h5>
+                            <p>{{ game_state.current_location.replace('_', ' ').title() }}</p>
+                            
+                            <div class="d-grid gap-2 mt-4">
+                                <form action="{{ url_for('save_game') }}" method="post">
+                                    <button type="submit" class="btn btn-outline-primary btn-sm w-100">Salvar Jogo</button>
+                                </form>
+                                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">Sair do Jogo</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Área Principal do Jogo (Centro) -->
+            <div class="col-md-6 main-game-area">
+                <div class="card bg-dark mb-3">
+                    <div class="card-body text-center p-0">
+                        <div class="game-image-container position-relative">
+                            <img id="gameImage" src="{{ image_url }}" alt="Cena do Jogo" class="img-fluid game-image" onerror="this.onerror=null; this.src='/static/placeholder.svg';">
+                            <div class="image-loading-overlay d-none">
+                                <div class="spinner-border text-light" role="status">
+                                    <span class="visually-hidden">Carregando...</span>
+                                </div>
+                            </div>
+                            
+                            {% if has_audio_intro %}
+                            <button id="playIntroButton" class="btn btn-outline-light position-absolute top-0 end-0 m-2" 
+                                    data-audio-id="{{ intro_audio_id }}" title="Ouvir introdução do personagem">
+                                <i class="bi bi-volume-up"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card bg-dark">
+                    <div class="card-body">
+                        <div id="gameText" class="game-text mb-4">
+                            <p>{{ description }}</p>
+                        </div>
+                        
+                        <div class="command-input-container">
+                            <form id="commandForm" class="d-flex">
+                                <input type="text" id="commandInput" class="form-control me-2" placeholder="Digite seu comando..." autocomplete="off">
+                                <button type="submit" class="btn btn-primary">Enviar</button>
+                            </form>
+                        </div>
+                        
+                        <div class="command-suggestions mt-3">
+                            <p class="text-muted small">Sugestões de comandos:</p>
+                            <div class="d-flex flex-wrap gap-1">
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">explorar o ambiente</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">ir para </button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">falar com </button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">status</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">missões disponíveis</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">o que tenho no inventário</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">descansar</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">lutar</button>
+                                <button class="btn btn-sm btn-outline-secondary suggestion-btn">ajuda</button>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Histórico do Jogo e Ajuda (Barra Lateral Direita) -->
+            <div class="col-md-3 sidebar history-panel">
+                <div class="card bg-dark h-100">
+                    <div class="card-header">
+                        <h4 class="mb-0">Histórico da Aventura</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="history-container">
+                            {% for image in history %}
+                            <div class="history-item mb-3">
+                                <div class="history-timestamp text-muted small">{{ image.created_at.strftime('%H:%M:%S') }}</div>
+                                <div class="history-image-container">
+                                    <img src="{{ image.image_url }}" alt="Imagem do Histórico" class="img-fluid history-image" onerror="this.onerror=null; this.src='/static/placeholder.svg';">
+                                </div>
+                                <div class="history-prompt small text-truncate">{{ image.prompt }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Passar informações do jogo para o JavaScript
+        const gameState = {
+            characterId: "{{ character.id }}",
+            characterName: "{{ character.name }}",
+            characterClass: "{{ character.character_class }}",
+            currentLocation: "{{ game_state.current_location }}"
+        };
+        
+        // Dica inicial (se disponível)
+        {% if initial_hint %}
+        const initialHint = "{{ initial_hint }}";
+        {% else %}
+        const initialHint = null;
+        {% endif %}
+    </script>
+    <script src="{{ url_for('static', filename='js/audio-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+    
+    {% if has_audio_intro %}
+    <div id="audioIntroContainer" class="d-none position-fixed bottom-0 start-50 translate-middle-x p-3 mb-3" style="width: 90%; max-width: 600px; z-index: 1050;">
+        <div class="card bg-dark border-secondary">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-volume-up me-2"></i>Introdução do Personagem</h6>
+                <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('audioIntroContainer').classList.add('d-none')"></button>
+            </div>
+            <div class="card-body">
+                <audio id="audioIntroPlayer" controls class="w-100 mb-3"></audio>
+                <div id="audioIntroText" class="mt-2 p-2 bg-dark text-light rounded small fst-italic"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notificação de áudio disponível -->
+    <div id="audioIntroNotification" class="position-fixed bottom-0 start-50 translate-middle-x p-3 mb-3" style="z-index: 1050; max-width: 300px;">
+        <div class="toast show bg-dark text-light" role="alert">
+            <div class="toast-header bg-dark text-light border-bottom border-secondary">
+                <i class="bi bi-volume-up me-2"></i>
+                <strong class="me-auto">Apresentação</strong>
+                <button type="button" class="btn-close btn-close-white" 
+                    onclick="document.getElementById('audioIntroNotification').remove()"></button>
+            </div>
+            <div class="toast-body">
+                <p class="small mb-2">Ouvir apresentação de {{ character.name }}?</p>
+                <button id="playIntroBtn" data-audio-id="{{ intro_audio_id }}" class="btn btn-sm btn-outline-light w-100">
+                    <i class="bi bi-play-fill"></i> Ouvir
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</body>
+</html>

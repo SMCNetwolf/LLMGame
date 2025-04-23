@@ -1,0 +1,5 @@
+.venv
+.env
+.firebaserc
+apphosting.yaml
+firebase.json
